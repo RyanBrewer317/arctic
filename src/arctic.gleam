@@ -45,7 +45,7 @@ fn process(collections: List(Collection)) -> Result(List(ProcessedCollection)) {
   use rest, collection <- list.try_fold(over: collections, from: [])
   use pages_unsorted <- result.try(read_collection(collection))
   let pages = list.sort(pages_unsorted, fn(p, q) { p.above(q) })
-  Ok([ProcessedCollection(collection:,pages:), ..rest])
+  Ok([ProcessedCollection(collection:, pages:), ..rest])
 }
 
 pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
@@ -54,12 +54,9 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
     ssg.new("site")
     |> ssg.use_index_routes()
     |> ssg.add_static_route("/", config.render_home(collections))
-    |> list.fold(
-      over: config.main_pages,
-      with: fn(ssg_config, page) {
-        ssg.add_static_route(ssg_config, "/" <> page.id, page.html)
-      },
-    )
+    |> list.fold(over: config.main_pages, with: fn(ssg_config, page) {
+      ssg.add_static_route(ssg_config, "/" <> page.id, page.html)
+    })
     |> list.try_fold(
       over: processed_collections,
       with: fn(ssg_config, processed) {
@@ -72,19 +69,25 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
             )
           None -> ssg_config
         }
-        list.fold(over: processed.pages, from: ssg_config2, with: fn(s, p: Page) {
-          ssg.add_static_route(
-            s,
-            "/" <> processed.collection.directory <> "/" <> p.id,
-            p.html,
-          )
-        })
+        list.fold(
+          over: processed.pages,
+          from: ssg_config2,
+          with: fn(s, p: Page) {
+            ssg.add_static_route(
+              s,
+              "/" <> processed.collection.directory <> "/" <> p.id,
+              p.html,
+            )
+          },
+        )
         |> Ok
       },
-    )
+    ),
   )
-  use _ <- result.try(ssg.build(ssg_config) |> map_error(fn(err) {
-    case err {
+  use _ <- result.try(
+    ssg.build(ssg_config)
+    |> map_error(fn(err) {
+      case err {
         ssg.CannotCreateTempDirectory(file_err) ->
           snag.new(
             "couldn't create temp directory ("
@@ -120,7 +123,8 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
             <> ")",
           )
       }
-  }))
+    }),
+  )
   use _ <- result.try(
     simplifile.create_directory("site/public")
     |> map_error(fn(err) {
@@ -153,7 +157,7 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
   )
   list.try_each(over: processed_collections, with: fn(processed) {
     case processed.collection.rss {
-      Some(render) -> 
+      Some(render) ->
         simplifile.write(
           contents: render(processed.pages),
           to: "site/public/feed.rss",
