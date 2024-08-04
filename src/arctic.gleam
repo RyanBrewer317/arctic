@@ -11,15 +11,18 @@ pub type Collection {
     parse: fn(String) -> Result(Page),
     index: Option(fn(List(Page)) -> Element(Nil)),
     rss: Option(fn(List(Page)) -> String),
+    ordering: fn(Page, Page) -> Order
   )
 }
 
 pub type Page {
   Page(
     id: String,
-    above: fn(Page) -> Order,
     html: Element(Nil),
     metadata: Dict(String, String),
+    title: String,
+    blerb: String,
+    tags: List(String),
     date: Option(Time),
   )
 }

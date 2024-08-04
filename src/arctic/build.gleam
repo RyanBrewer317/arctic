@@ -43,7 +43,7 @@ fn read_collection(collection: Collection) -> Result(List(Page)) {
 fn process(collections: List(Collection)) -> Result(List(ProcessedCollection)) {
   use rest, collection <- list.try_fold(over: collections, from: [])
   use pages_unsorted <- result.try(read_collection(collection))
-  let pages = list.sort(pages_unsorted, fn(p, q) { p.above(q) })
+  let pages = list.sort(pages_unsorted, collection.ordering)
   Ok([ProcessedCollection(collection:, pages:), ..rest])
 }
 
