@@ -75,7 +75,7 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
             ssg.add_static_route(
               s,
               "/" <> processed.collection.directory <> "/" <> p.id,
-              p.html,
+              processed.collection.render(p),
             )
           },
         )

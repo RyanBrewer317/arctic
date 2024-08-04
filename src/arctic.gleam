@@ -12,13 +12,14 @@ pub type Collection {
     index: Option(fn(List(Page)) -> Element(Nil)),
     rss: Option(fn(List(Page)) -> String),
     ordering: fn(Page, Page) -> Order,
+    render: fn(Page) -> Element(Nil)
   )
 }
 
 pub type Page {
   Page(
     id: String,
-    html: Element(Nil),
+    body: List(Element(Nil)),
     metadata: Dict(String, String),
     title: String,
     blerb: String,
