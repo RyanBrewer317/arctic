@@ -3,6 +3,7 @@ import gleam/order.{type Order}
 import lustre/element.{type Element}
 import snag.{type Result}
 import gleam/dict.{type Dict}
+import birl.{type Time}
 
 pub type Collection {
   Collection(
@@ -18,7 +19,8 @@ pub type Page {
     id: String,
     above: fn(Page) -> Order,
     html: Element(Nil),
-    metadata: Dict(String, String)
+    metadata: Dict(String, String),
+    date: Option(Time)
   )
 }
 
