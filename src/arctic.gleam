@@ -11,7 +11,7 @@ pub type Collection {
     parse: fn(String) -> Result(Page),
     index: Option(fn(List(Page)) -> Element(Nil)),
     rss: Option(fn(List(Page)) -> String),
-    ordering: fn(Page, Page) -> Order
+    ordering: fn(Page, Page) -> Order,
   )
 }
 

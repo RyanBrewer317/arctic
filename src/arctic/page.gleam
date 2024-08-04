@@ -1,7 +1,7 @@
 import arctic.{type Page, Page}
+import birl.{type Time}
 import gleam/dict.{type Dict}
 import gleam/option.{None, Some}
-import birl.{type Time}
 import lustre/element.{type Element}
 import lustre/element/html
 
@@ -34,15 +34,7 @@ pub fn with_metadata(p: Page, key: String, val: String) -> Page {
 }
 
 pub fn replace_metadata(p: Page, metadata: Dict(String, String)) -> Page {
-  Page(
-    p.id,
-    p.html,
-    metadata,
-    p.title,
-    p.blerb,
-    p.tags,
-    p.date,
-  )
+  Page(p.id, p.html, metadata, p.title, p.blerb, p.tags, p.date)
 }
 
 pub fn with_title(p: Page, title: String) -> Page {
