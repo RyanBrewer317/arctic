@@ -1,4 +1,3 @@
-
 import gleam/option.{type Option}
 import gleam/order.{type Order}
 import lustre/element.{type Element}
@@ -17,13 +16,17 @@ pub type Page {
   Page(id: String, above: fn(Page) -> Order, html: Element(Nil))
 }
 
+pub type ProcessedCollection {
+  ProcessedCollection(collection: Collection, pages: List(Page))
+}
+
 pub type MainPage {
   MainPage(id: String, html: Element(Nil))
 }
 
 pub type Config {
   Config(
-    render_home: fn(List(Collection)) -> Element(Nil),
+    render_home: fn(List(ProcessedCollection)) -> Element(Nil),
     main_pages: List(MainPage),
   )
 }

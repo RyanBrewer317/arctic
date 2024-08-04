@@ -1,4 +1,7 @@
-import arctic.{type Collection, type Config, type Page}
+import arctic.{
+  type Collection, type Config, type Page, type ProcessedCollection,
+  ProcessedCollection,
+}
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result.{map_error}
@@ -37,10 +40,6 @@ fn read_collection(collection: Collection) -> Result(List(Page)) {
   |> result.map(list.reverse)
 }
 
-type ProcessedCollection {
-  ProcessedCollection(collection: Collection, pages: List(Page))
-}
-
 fn process(collections: List(Collection)) -> Result(List(ProcessedCollection)) {
   use rest, collection <- list.try_fold(over: collections, from: [])
   use pages_unsorted <- result.try(read_collection(collection))
@@ -53,7 +52,7 @@ pub fn build(config: Config, collections: List(Collection)) -> Result(Nil) {
   use ssg_config <- result.try(
     ssg.new("site")
     |> ssg.use_index_routes()
-    |> ssg.add_static_route("/", config.render_home(collections))
+    |> ssg.add_static_route("/", config.render_home(processed_collections))
     |> list.fold(over: config.main_pages, with: fn(ssg_config, page) {
       ssg.add_static_route(ssg_config, "/" <> page.id, page.html)
     })
