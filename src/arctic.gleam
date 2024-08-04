@@ -1,10 +1,14 @@
-import common.{type Collection, type Config, type Page}
+import common
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result.{map_error}
 import lustre/ssg
 import simplifile
 import snag.{type Result}
+
+pub type Config = common.Config
+pub type Collection = common.Collection
+pub type Page = common.Page
 
 fn read_collection(collection: Collection) -> Result(List(Page)) {
   use paths <- result.try(
