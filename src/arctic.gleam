@@ -2,6 +2,7 @@ import gleam/option.{type Option}
 import gleam/order.{type Order}
 import lustre/element.{type Element}
 import snag.{type Result}
+import gleam/dict.{type Dict}
 
 pub type Collection {
   Collection(
@@ -13,7 +14,12 @@ pub type Collection {
 }
 
 pub type Page {
-  Page(id: String, above: fn(Page) -> Order, html: Element(Nil))
+  Page(
+    id: String,
+    above: fn(Page) -> Order,
+    html: Element(Nil),
+    metadata: Dict(String, String)
+  )
 }
 
 pub type ProcessedCollection {
