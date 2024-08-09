@@ -12,7 +12,8 @@ pub type Collection {
     index: Option(fn(List(Page)) -> Element(Nil)),
     rss: Option(fn(List(Page)) -> String),
     ordering: fn(Page, Page) -> Order,
-    render: fn(Page) -> Element(Nil)
+    render: fn(Page) -> Element(Nil),
+    raw_pages: List(RawPage),
   )
 }
 
@@ -32,13 +33,14 @@ pub type ProcessedCollection {
   ProcessedCollection(collection: Collection, pages: List(Page))
 }
 
-pub type MainPage {
-  MainPage(id: String, html: Element(Nil))
+pub type RawPage {
+  RawPage(id: String, html: Element(Nil))
 }
 
 pub type Config {
   Config(
     render_home: fn(List(ProcessedCollection)) -> Element(Nil),
-    main_pages: List(MainPage),
+    main_pages: List(RawPage),
+    collections: List(Collection),
   )
 }

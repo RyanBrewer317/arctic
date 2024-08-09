@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Upcoming
+
+### Added
+
+ - `arctic/collection` and `arctic/config` provide a builder-pattern interface for constructing a site.
+ - `arctic_vite_config.js` is now generated, giving an object that can be exported into a vite config file.
+
+### Changed
+
+ - Collections can have raw pages that you can just add (not all pages must be parsed from a collection directory).
+ - `MainPage` -> `RawPage`, to make this concept usable in other parts of Arctic.
+ - Configurations now hold the list of collections, instead of that being a separate argument to `build.build`.
+
 ## [7.0.0] - 2024-08-04
 
 ### Changed
