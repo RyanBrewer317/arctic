@@ -58,7 +58,7 @@ pub type Registration {
 
 fn tokenize_metadata(
   start_dict: Dict(String, String),
-) -> Parser(Dict(String, String), Nil) {
+) -> Parser(Dict(String, String), snag.Snag) {
   use res <- party.do(party.perhaps(party.satisfy(fn(c) { c != "\n" })))
   case res {
     Ok(key_first) -> {
@@ -82,7 +82,7 @@ fn tokenize_metadata(
   }
 }
 
-fn tokenize_prefix() -> Parser(String, Nil) {
+fn tokenize_prefix() -> Parser(String, snag.Snag) {
   party.many_concat(
     party.satisfy(string.contains(
       does: "~`!#$%^&*-_=+{[|;:<>,./?]}",
@@ -91,7 +91,7 @@ fn tokenize_prefix() -> Parser(String, Nil) {
   )
 }
 
-fn escaped_char() -> Parser(String, Nil) {
+fn escaped_char() -> Parser(String, snag.Snag) {
   use _ <- party.do(party.char("\\"))
   use c <- party.do(party.satisfy(fn(_) { True }))
   case c {
@@ -105,13 +105,14 @@ fn escaped_char() -> Parser(String, Nil) {
       use code_str <- party.do(
         party.many1_concat(
           party.satisfy(string.contains(
-            does: "1234567890abcdefgABCDEFG",
+            does: "1234567890abcdefABCDEF",
             contain: _,
           )),
         ),
       )
       use _ <- party.do(party.whitespace())
       use _ <- party.do(party.char("}"))
+      // this assert should never fail because we only parse characters in "1234567890abcdefABCDEF"
       let assert Ok(code) = int.base_parse(code_str, 16)
       case string.utf_codepoint(code) {
         Ok(codepoint) -> party.return(string.from_utf_codepoints([codepoint]))
@@ -127,7 +128,7 @@ fn escaped_char() -> Parser(String, Nil) {
 fn tokenize_markup(
   inline_rules: List(InlineRule),
   until terminator: String,
-) -> Parser(Element(Nil), Nil) {
+) -> Parser(Element(Nil), snag.Snag) {
   party.choice(
     list.map(inline_rules, fn(rule) {
       use _ <- party.do(party.string(rule.left))
@@ -174,9 +175,9 @@ fn tokenize_text(
             list.find(prefix_rules, fn(rule) { rule.prefix == prefix })
           {
             Ok(rule) ->
-              case rule.action(rest) {
-                Ok(el) -> party.return(el)
-                Error(_snag) -> party.fail()
+              {
+                use el <- party.do(party.try(party.return(Nil), fn(_) {rule.action(rest)}))
+                party.return(el)
               }
             Error(Nil) ->
               party.return(html.div([], [element.text(prefix), rest]))
@@ -188,14 +189,24 @@ fn tokenize_text(
     case res {
       Ok(t) -> TokenizeResult(val: t, errors: [])
       Error(err) -> {
-        let assert party.Unexpected(party_pos, s) = err
-        TokenizeResult(val: DidntParse, errors: [
-          ParseError(
-            line: party_pos.row + pos.row,
-            column: party_pos.col + pos.col,
-            unexpected: s,
-          ),
-        ])
+        case err {
+          party.Unexpected(party_pos, s) -> 
+            TokenizeResult(val: DidntParse, errors: [
+              ParseError(
+                line: party_pos.row + pos.row,
+                column: party_pos.col + pos.col,
+                unexpected: s,
+              ),
+            ])
+          party.UserError(party_pos, err) ->
+            TokenizeResult(val: DidntParse, errors: [
+              ParseError(
+                line: party_pos.row + pos.row,
+                column: party_pos.col + pos.col,
+                unexpected: err.issue
+              )
+            ])
+        }        
       }
     }
   })
@@ -238,11 +249,14 @@ fn tokenize_component(registry: List(Registration)) -> Tokenizer {
                 until: party.string("\n\n"),
               ))
               case registration {
-                StaticRegistration(_, action:) ->
-                  case action(args, string.concat(body)) {
-                    Ok(el) -> party.return(Markup(el))
-                    Error(_snag) -> party.fail()
-                  }
+                StaticRegistration(_, action:) -> {
+                  use el <- party.do(
+                    party.try(party.return(Nil), fn(_) {
+                      action(args, string.concat(body))
+                    }),
+                  )
+                  party.return(Markup(el))
+                }
                 DynamicRegistration(_) ->
                   party.return(Component(
                     registration.name,
@@ -258,14 +272,25 @@ fn tokenize_component(registry: List(Registration)) -> Tokenizer {
     case res {
       Ok(t) -> TokenizeResult(val: t, errors: [])
       Error(err) -> {
-        let assert party.Unexpected(party_pos, s) = err
-        TokenizeResult(val: DidntParse, errors: [
-          ParseError(
-            line: pos.row + party_pos.row,
-            column: pos.col + party_pos.col,
-            unexpected: s,
-          ),
-        ])
+        case err {
+          party.Unexpected(party_pos, s) ->
+            TokenizeResult(val: DidntParse, errors: [
+              ParseError(
+                line: pos.row + party_pos.row,
+                column: pos.col + party_pos.col,
+                unexpected: s,
+              ),
+            ])
+          party.UserError(party_pos, err) ->
+            TokenizeResult(val: DidntParse, errors: [
+              ParseError(
+                line: pos.row + party_pos.row,
+                column: pos.col + party_pos.col,
+                unexpected: err.issue,
+                // TODO: should I show err.cause too? Since I have it?
+              ),
+            ])
+        }
       }
     }
   })
@@ -333,10 +358,16 @@ pub fn tokenize_page(
   let metadata = case meta_res {
     Ok(sec) -> TokenizeResult(val: sec, errors: [])
     Error(err) -> {
-      let assert party.Unexpected(pos, s) = err
-      TokenizeResult(val: dict.new(), errors: [
-        ParseError(line: pos.row, column: pos.col, unexpected: s),
-      ])
+      case err {
+        party.Unexpected(pos, s) ->
+          TokenizeResult(val: dict.new(), errors: [
+            ParseError(line: pos.row, column: pos.col, unexpected: s),
+          ])
+        party.UserError(pos, err) ->
+          TokenizeResult(val: dict.new(), errors: [
+            ParseError(line: pos.row, column: pos.col, unexpected: err.issue),
+          ])
+      }
     }
   }
   Ok(TokenizeResult(
