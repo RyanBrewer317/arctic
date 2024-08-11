@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
  - `arctic/collection` and `arctic/config` provide a builder-pattern interface for constructing a site.
  - `arctic_vite_config.js` is now generated, giving an object that can be exported into a vite config file.
- - added `default_parser` to `arctic/collection`, though I need to break it out into composable pieces to pick and choose behaviors that are common or add in some of your own.
- - added `arctic/parse` with all the machinery of parsing markup in the ways you want.
+ - Added `default_parser` to `arctic/collection`.
+ - Added `arctic/parse` with all the machinery of parsing markup in the ways you want.
 
 ### Changed
 
