@@ -95,7 +95,11 @@ pub fn with_index(
 /// Add a "feed" to the collection.
 /// A feed is a special text file generated based on the elements of the collection.
 /// An RSS feed would be done this way.
-pub fn with_feed(c: Collection, filename: String, render: fn(List(Page)) -> String) -> Collection {
+pub fn with_feed(
+  c: Collection,
+  filename: String,
+  render: fn(List(Page)) -> String,
+) -> Collection {
   Collection(
     c.directory,
     c.parse,
