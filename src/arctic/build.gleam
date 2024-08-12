@@ -47,6 +47,7 @@ fn process(collections: List(Collection)) -> Result(List(ProcessedCollection)) {
   Ok([ProcessedCollection(collection:, pages:), ..rest])
 }
 
+/// Fill out an `arctic_build` directory from an Arctic configuration.
 pub fn build(config: Config) -> Result(Nil) {
   use processed_collections <- result.try(process(config.collections))
   use ssg_config <- make_ssg_config(processed_collections, config)
@@ -204,10 +205,10 @@ fn add_feed(
   })
   use _ <- result.try({
     list.try_each(over: processed_collections, with: fn(processed) {
-      option_to_result_nil(processed.collection.rss, fn(render) {
+      option_to_result_nil(processed.collection.feed, fn(feed) {
         simplifile.write(
-          contents: render(processed.pages),
-          to: "arctic_build/public/feed.rss",
+          contents: feed.1(processed.pages),
+          to: "arctic_build/public/" <> feed.0,
         )
         |> map_error(fn(err) {
           snag.new(

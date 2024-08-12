@@ -13,12 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - `arctic_vite_config.js` is now generated, giving an object that can be exported into a vite config file.
  - Added `default_parser` to `arctic/collection`.
  - Added `arctic/parse` with all the machinery of parsing markup in the ways you want.
+ - Much better documentation. (There's still more to do here though!)
 
 ### Changed
 
  - Collections can have raw pages that you can just add (not all pages must be parsed from a collection directory).
  - `MainPage` -> `RawPage`, to make this concept usable in other parts of Arctic.
  - Configurations now hold the list of collections, instead of that being a separate argument to `build.build`.
+ - Rename a collection's `.rss` field to `.feed`, which is now both the render function and the filename.
 
 ## [7.0.0] - 2024-08-04
 
