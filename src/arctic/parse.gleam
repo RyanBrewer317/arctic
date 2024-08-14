@@ -415,7 +415,7 @@ fn escaped_char() -> Parser(String, snag.Snag) {
 
 fn parse_markup(
   inline_rules: List(InlineRule(a)),
-  until terminator: String,
+  until terminator: Parser(Nil, snag.Snag),
   given data: ParseData(a),
 ) -> Parser(#(Element(Nil), a), snag.Snag) {
   party.choice(
@@ -431,7 +431,11 @@ fn parse_markup(
         ))
       use #(middle, new_state) <- party.do(
         party.lazy(fn() {
-          parse_markup(inline_rules, until: rule.right, given: data2)
+          parse_markup(
+            inline_rules,
+            until: party.map(party.string(rule.right), fn(_) { Nil }),
+            given: data2,
+          )
         }),
       )
       let data3 = data2 |> with_state(new_state)
@@ -452,7 +456,7 @@ fn parse_markup(
     |> list.append([
       party.until(
         do: party.either(escaped_char(), party.satisfy(fn(_) { True })),
-        until: party.string(terminator),
+        until: terminator,
       )
       |> party.map(fn(chars) {
         #(
@@ -492,7 +496,7 @@ fn parse_text(
             ))
           use #(rest, new_state) <- party.do(parse_markup(
             inline_rules,
-            until: "\n\n",
+            until: party.end(),
             given: data2,
           ))
           let data3 = data2 |> with_state(new_state)
@@ -589,7 +593,7 @@ fn parse_component(components: List(Component(a))) -> ArcticParser(a) {
               use _ <- party.do(party.char("\n"))
               use body <- party.do(party.until(
                 do: party.satisfy(fn(_) { True }),
-                until: party.string("\n\n"),
+                until: party.end(),
               ))
               case component {
                 StaticComponent(_, action:) -> {
