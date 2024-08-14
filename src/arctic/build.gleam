@@ -34,7 +34,7 @@ fn read_collection(collection: Collection) -> Result(List(Page)) {
         )
       }),
     )
-    use p <- result.try(collection.parse(content))
+    use p <- result.try(collection.parse(path, content))
     Ok([p, ..so_far])
   })
   |> result.map(list.reverse)

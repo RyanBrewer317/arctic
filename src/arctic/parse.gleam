@@ -219,12 +219,14 @@ pub fn add_dynamic_component(
 }
 
 /// Apply a given parser to a given string.
-pub fn parse(p: ParserBuilder(a), src: String) -> Result(Page) {
+pub fn parse(p: ParserBuilder(a), src_name: String, src: String) -> Result(Page) {
   use parsed <- result.try(parse_page(p, src))
   case parsed.errors {
     [first_e, ..rest] ->
       snag.error(
-        "parse errors in `___` ("
+        "parse errors in `"
+        <> src_name
+        <> "` ("
         <> list.fold(
           rest,
           "unexpected "

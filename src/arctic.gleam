@@ -17,7 +17,7 @@ import snag.{type Result}
 pub type Collection {
   Collection(
     directory: String,
-    parse: fn(String) -> Result(Page),
+    parse: fn(String, String) -> Result(Page),
     index: Option(fn(List(Page)) -> Element(Nil)),
     feed: Option(#(String, fn(List(Page)) -> String)),
     ordering: fn(Page, Page) -> Order,

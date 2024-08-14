@@ -37,7 +37,7 @@ pub fn new(dir: String) -> Collection {
 /// See `arctic/parse` for help constructing these.
 pub fn with_parser(
   c: Collection,
-  parser: fn(String) -> Result(Page),
+  parser: fn(String, String) -> Result(Page),
 ) -> Collection {
   Collection(
     c.directory,
@@ -52,8 +52,8 @@ pub fn with_parser(
 
 /// A simple default parser for the sorts of things you'd expect when writing markup.
 /// This also serves as a nice example of how to construct parsers.
-pub fn default_parser() -> fn(String) -> Result(Page) {
-  fn(src) {
+pub fn default_parser() -> fn(String, String) -> Result(Page) {
+  fn(src_name, src) {
     let parser =
       parse.new(Nil)
       |> parse.add_inline_rule("*", "*", parse.wrap_inline(html.i))
@@ -75,7 +75,7 @@ pub fn default_parser() -> fn(String) -> Result(Page) {
           }
         }
       })
-    parse.parse(parser, src)
+    parse.parse(parser, src_name, src)
   }
 }
 
