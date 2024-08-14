@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.2] - 2024-08-14
+
+### Fixed
+
+ - paragraph/component parsing bug
+
+## [9.0.1] - 2024-08-14
+
+### Changed
+
+ - `arctic/parse.parse` now takes a source name used in errors, and `.parser` in `Collection` does too.
+
 ## [9.0.0] - 2024-08-13
 
 ### Changed
@@ -12,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - Parsing with the combinators in `arctic/parse` now gives access to a new `ParseData(a)` type, allowing the threading of arbitrary state through the parsing process. It replaces the position parameter, and also gives access to the position and earlier-parsed metadata for the markup file. 
  - For the threading of state, the parse actions now must return a `Result(#(Element(Nil), a))` value, where `a` is the user-provided state type. We could provide convenience functions that just expect `Result(Element(Nil))` instead but I'm worried the API is already seeming overwhelming. 
  - `new` also now takes an argument for the initial state at the beginning of parsing a markup file.
- - `arctic/parse.parse` now takes a source name used in errors, and `.parser` in `Collection` does too.
 
 ## [8.0.0] - 2024-08-12
 
