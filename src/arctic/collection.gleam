@@ -1,5 +1,6 @@
 import arctic.{type Collection, type Page, Collection, RawPage}
 import arctic/parse
+import gleam/int
 import gleam/option.{None, Some}
 import gleam/order.{type Order, Eq}
 import gleam/string
@@ -54,16 +55,24 @@ pub fn with_parser(
 pub fn default_parser() -> fn(String) -> Result(Page) {
   fn(src) {
     let parser =
-      parse.new()
+      parse.new(Nil)
       |> parse.add_inline_rule("*", "*", parse.wrap_inline(html.i))
       |> parse.add_prefix_rule("#", parse.wrap_prefix(html.h1))
-      |> parse.add_static_component("image", fn(args, label, _pos) {
+      |> parse.add_static_component("image", fn(args, label, data) {
         case args {
-          [url] -> Ok(html.img([attribute.src(url), attribute.alt(label)]))
-          _ ->
+          [url] ->
+            Ok(#(html.img([attribute.src(url), attribute.alt(label)]), Nil))
+          _ -> {
+            let pos = parse.get_pos(data)
             snag.error(
-              "bad @image arguments `" <> string.join(args, ", ") <> "`",
+              "bad @image arguments `"
+              <> string.join(args, ", ")
+              <> "` at "
+              <> int.to_string(pos.line)
+              <> ":"
+              <> int.to_string(pos.column),
             )
+          }
         }
       })
     parse.parse(parser, src)

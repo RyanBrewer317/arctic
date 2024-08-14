@@ -29,8 +29,41 @@ type ParseError {
   ParseError(pos: Position, unexpected: String)
 }
 
-type ArcticParser {
-  ArcticParser(parse: fn(String, Position) -> ParseResult(Option(Element(Nil))))
+type ArcticParser(a) {
+  ArcticParser(
+    parse: fn(String, ParseData(a)) -> ParseResult(Option(#(Element(Nil), a))),
+  )
+}
+
+// NOTE: We need to be careful about state with cached paragraphs. 
+// We can cache the input and output state of each, 
+// and then when a paragraph is editted we cascade rerenders downwards 
+// until we'd be giving a paragraph an input state that matches its cached input state. 
+// At that point we know we don't need to rerender it or anything below it.
+
+/// The data accessible while parsing, such as current position or filename.
+pub opaque type ParseData(a) {
+  ParseData(pos: Position, metadata: Dict(String, String), state: a)
+}
+
+pub fn get_pos(data: ParseData(a)) -> Position {
+  data.pos
+}
+
+pub fn get_metadata(data: ParseData(a)) -> Dict(String, String) {
+  data.metadata
+}
+
+pub fn get_state(data: ParseData(a)) -> a {
+  data.state
+}
+
+fn with_pos(data: ParseData(a), pos: Position) -> ParseData(a) {
+  ParseData(pos:, metadata: data.metadata, state: data.state)
+}
+
+pub fn with_state(data: ParseData(a), state: a) -> ParseData(a) {
+  ParseData(pos: data.pos, metadata: data.metadata, state:)
 }
 
 /// A place in an Arctic markup file
@@ -38,25 +71,26 @@ pub type Position {
   Position(line: Int, column: Int)
 }
 
-type InlineRule {
+type InlineRule(a) {
   InlineRule(
     left: String,
     right: String,
-    action: fn(Element(Nil), List(String), Position) -> Result(Element(Nil)),
+    action: fn(Element(Nil), List(String), ParseData(a)) ->
+      Result(#(Element(Nil), a)),
   )
 }
 
-type PrefixRule {
+type PrefixRule(a) {
   PrefixRule(
     prefix: String,
-    action: fn(Element(Nil), Position) -> Result(Element(Nil)),
+    action: fn(Element(Nil), ParseData(a)) -> Result(#(Element(Nil), a)),
   )
 }
 
-type Component {
+type Component(a) {
   StaticComponent(
     name: String,
-    action: fn(List(String), String, Position) -> Result(Element(Nil)),
+    action: fn(List(String), String, ParseData(a)) -> Result(#(Element(Nil), a)),
   )
   DynamicComponent(name: String)
 }
@@ -67,17 +101,24 @@ type Component {
 /// my_parser
 ///   |> add_inline_rule("_", "_", wrap_inline(html.i))
 /// ```
-pub opaque type ParserBuilder {
+pub opaque type ParserBuilder(a) {
   ParserBuilder(
-    inline_rules: List(InlineRule),
-    prefix_rules: List(PrefixRule),
-    components: List(Component),
+    inline_rules: List(InlineRule(a)),
+    prefix_rules: List(PrefixRule(a)),
+    components: List(Component(a)),
+    start_state: a,
   )
 }
 
 /// Create a new parser builder, with no rules or components.
-pub fn new() -> ParserBuilder {
-  ParserBuilder(inline_rules: [], prefix_rules: [], components: [])
+/// It only has an initial state.
+pub fn new(start_state: a) -> ParserBuilder(a) {
+  ParserBuilder(
+    inline_rules: [],
+    prefix_rules: [],
+    components: [],
+    start_state:,
+  )
 }
 
 /// Add an "inline rule" to a parser.
@@ -89,15 +130,17 @@ pub fn new() -> ParserBuilder {
 /// The rewrite might also be given parameters, allowing for something like
 /// `[here](https://example.com) is a link`
 pub fn add_inline_rule(
-  p: ParserBuilder,
+  p: ParserBuilder(a),
   left: String,
   right: String,
-  action: fn(Element(Nil), List(String), Position) -> Result(Element(Nil)),
-) -> ParserBuilder {
+  action: fn(Element(Nil), List(String), ParseData(a)) ->
+    Result(#(Element(Nil), a)),
+) -> ParserBuilder(a) {
   ParserBuilder(
     [InlineRule(left, right, action), ..p.inline_rules],
     p.prefix_rules,
     p.components,
+    p.start_state,
   )
 }
 
@@ -108,14 +151,15 @@ pub fn add_inline_rule(
 /// Note that the rule may fail with a `snag` error, halting the parsing of that paragraph,
 /// and that the position in the file is given, so you can produce better `snag` error messages.
 pub fn add_prefix_rule(
-  p: ParserBuilder,
+  p: ParserBuilder(a),
   prefix: String,
-  action: fn(Element(Nil), Position) -> Result(Element(Nil)),
-) -> ParserBuilder {
+  action: fn(Element(Nil), ParseData(a)) -> Result(#(Element(Nil), a)),
+) -> ParserBuilder(a) {
   ParserBuilder(
     p.inline_rules,
     [PrefixRule(prefix, action), ..p.prefix_rules],
     p.components,
+    p.start_state,
   )
 }
 
@@ -134,14 +178,16 @@ pub fn add_prefix_rule(
 /// Note that the component may fail with a `snag` error, halting the parsing of that paragraph,
 /// and that the position in the file is given, so you can produce better `snag` error messages.
 pub fn add_static_component(
-  p: ParserBuilder,
+  p: ParserBuilder(a),
   name: String,
-  action: fn(List(String), String, Position) -> Result(Element(Nil)),
-) -> ParserBuilder {
-  ParserBuilder(p.inline_rules, p.prefix_rules, [
-    StaticComponent(name, action),
-    ..p.components
-  ])
+  action: fn(List(String), String, ParseData(a)) -> Result(#(Element(Nil), a)),
+) -> ParserBuilder(a) {
+  ParserBuilder(
+    p.inline_rules,
+    p.prefix_rules,
+    [StaticComponent(name, action), ..p.components],
+    p.start_state,
+  )
 }
 
 /// Add a "dynamic component" to a parser.
@@ -160,21 +206,21 @@ pub fn add_static_component(
 /// <component_name data-parameters="an arg,another arg" data-body="A bunch\nof content">
 /// </component_name>
 /// ```
-pub fn add_dynamic_component(p: ParserBuilder, name: String) -> ParserBuilder {
-  ParserBuilder(p.inline_rules, p.prefix_rules, [
-    DynamicComponent(name),
-    ..p.components
-  ])
+pub fn add_dynamic_component(
+  p: ParserBuilder(a),
+  name: String,
+) -> ParserBuilder(a) {
+  ParserBuilder(
+    p.inline_rules,
+    p.prefix_rules,
+    [DynamicComponent(name), ..p.components],
+    p.start_state,
+  )
 }
 
 /// Apply a given parser to a given string.
-pub fn parse(p: ParserBuilder, src: String) -> Result(Page) {
-  use parsed <- result.try(parse_page(
-    p.inline_rules,
-    p.prefix_rules,
-    p.components,
-    src,
-  ))
+pub fn parse(p: ParserBuilder(a), src: String) -> Result(Page) {
+  use parsed <- result.try(parse_page(p, src))
   case parsed.errors {
     [first_e, ..rest] ->
       snag.error(
@@ -260,7 +306,7 @@ pub fn parse(p: ParserBuilder, src: String) -> Result(Page) {
 pub fn wrap_inline(
   w: fn(List(Attribute(a)), List(Element(Nil))) -> Element(Nil),
 ) {
-  fn(el, _args, _pos) { Ok(w([], [el])) }
+  fn(el, _args, data) { Ok(#(w([], [el]), get_state(data))) }
 }
 
 /// A convenience function for inline rules that just put content in an element 
@@ -271,7 +317,7 @@ pub fn wrap_inline_with_attributes(
   w: fn(List(Attribute(a)), List(Element(Nil))) -> Element(Nil),
   attrs: List(Attribute(a)),
 ) {
-  fn(el, _args, _pos) { Ok(w(attrs, [el])) }
+  fn(el, _args, data) { Ok(#(w(attrs, [el]), get_state(data))) }
 }
 
 /// A convenience function for prefix rules that just put content in an element
@@ -279,7 +325,7 @@ pub fn wrap_inline_with_attributes(
 pub fn wrap_prefix(
   w: fn(List(Attribute(a)), List(Element(Nil))) -> Element(Nil),
 ) {
-  fn(el, _pos) { Ok(w([], [el])) }
+  fn(el, data) { Ok(#(w([], [el]), get_state(data))) }
 }
 
 /// A convenience function for prefix rules that just put content in an element 
@@ -290,7 +336,7 @@ pub fn wrap_prefix_with_attributes(
   w: fn(List(Attribute(a)), List(Element(Nil))) -> Element(Nil),
   attrs: List(Attribute(a)),
 ) {
-  fn(el, _pos) { Ok(w(attrs, [el])) }
+  fn(el, data) { Ok(#(w(attrs, [el]), get_state(data))) }
 }
 
 fn parse_metadata(
@@ -366,24 +412,27 @@ fn escaped_char() -> Parser(String, snag.Snag) {
 }
 
 fn parse_markup(
-  inline_rules: List(InlineRule),
+  inline_rules: List(InlineRule(a)),
   until terminator: String,
-  at pos: Position,
-) -> Parser(Element(Nil), snag.Snag) {
+  given data: ParseData(a),
+) -> Parser(#(Element(Nil), a), snag.Snag) {
   party.choice(
     list.map(inline_rules, fn(rule) {
       use _ <- party.do(party.string(rule.left))
       use party_pos <- party.do(party.pos())
-      let pos2 =
-        Position(
+      let pos = get_pos(data)
+      let data2 =
+        data
+        |> with_pos(Position(
           line: pos.line + party_pos.row,
           column: pos.column + party_pos.col,
-        )
-      use middle <- party.do(
+        ))
+      use #(middle, new_state) <- party.do(
         party.lazy(fn() {
-          parse_markup(inline_rules, until: rule.right, at: pos2)
+          parse_markup(inline_rules, until: rule.right, given: data2)
         }),
       )
+      let data3 = data2 |> with_state(new_state)
       use res <- party.do(party.perhaps(party.char("(")))
       use args <- party.do(case res {
         Ok(_) -> {
@@ -396,7 +445,7 @@ fn parse_markup(
         }
         Error(Nil) -> party.return([])
       })
-      party.try(party.return(Nil), fn(_) { rule.action(middle, args, pos2) })
+      party.try(party.return(Nil), fn(_) { rule.action(middle, args, data3) })
     })
     |> list.append([
       party.until(
@@ -404,12 +453,15 @@ fn parse_markup(
         until: party.string(terminator),
       )
       |> party.map(fn(chars) {
-        html.span(
-          [],
-          string.concat(chars)
-            |> string.split("\n")
-            |> list.map(element.text)
-            |> list.intersperse(html.br([])),
+        #(
+          html.span(
+            [],
+            string.concat(chars)
+              |> string.split("\n")
+              |> list.map(element.text)
+              |> list.intersperse(html.br([])),
+          ),
+          get_state(data),
         )
       }),
     ]),
@@ -417,10 +469,11 @@ fn parse_markup(
 }
 
 fn parse_text(
-  inline_rules: List(InlineRule),
-  prefix_rules: List(PrefixRule),
-) -> ArcticParser {
-  ArcticParser(fn(src, pos) {
+  inline_rules: List(InlineRule(a)),
+  prefix_rules: List(PrefixRule(a)),
+) -> ArcticParser(a) {
+  ArcticParser(fn(src, data) {
+    let pos = get_pos(data)
     let res =
       party.go(
         {
@@ -429,33 +482,39 @@ fn parse_text(
             party.many(party.either(party.char(" "), party.char("\t"))),
           )
           use party_pos <- party.do(party.pos())
-          let pos2 =
-            Position(
+          let data2 =
+            data
+            |> with_pos(Position(
               line: pos.line + party_pos.row,
               column: pos.column + party_pos.col,
-            )
-          use rest <- party.do(parse_markup(
+            ))
+          use #(rest, new_state) <- party.do(parse_markup(
             inline_rules,
             until: "\n\n",
-            at: pos2,
+            given: data2,
           ))
+          let data3 = data2 |> with_state(new_state)
           use el <- party.do(case
             list.find(prefix_rules, fn(rule) { rule.prefix == prefix })
           {
             Ok(rule) -> {
               use party_pos <- party.do(party.pos())
-              let pos3 =
-                Position(
+              let data4 =
+                data3
+                |> with_pos(Position(
                   line: pos.line + party_pos.row,
                   column: pos.column + party_pos.col,
-                )
+                ))
               use el <- party.do(
-                party.try(party.return(Nil), fn(_) { rule.action(rest, pos3) }),
+                party.try(party.return(Nil), fn(_) { rule.action(rest, data4) }),
               )
               party.return(el)
             }
             Error(Nil) ->
-              party.return(html.div([], [element.text(prefix), rest]))
+              party.return(#(
+                html.div([], [element.text(prefix), rest]),
+                get_state(data3),
+              ))
           })
           party.return(Some(el))
         },
@@ -491,8 +550,9 @@ fn parse_text(
   })
 }
 
-fn parse_component(components: List(Component)) -> ArcticParser {
-  ArcticParser(fn(src, pos) {
+fn parse_component(components: List(Component(a))) -> ArcticParser(a) {
+  ArcticParser(fn(src, data) {
+    let pos = get_pos(data)
     let res =
       party.go(
         {
@@ -532,21 +592,22 @@ fn parse_component(components: List(Component)) -> ArcticParser {
               case component {
                 StaticComponent(_, action:) -> {
                   use party_pos <- party.do(party.pos())
-                  let pos2 =
-                    Position(
+                  let data2 =
+                    data
+                    |> with_pos(Position(
                       line: pos.line + party_pos.row,
                       column: pos.column + party_pos.col,
-                    )
+                    ))
                   use el <- party.do(
                     party.try(party.return(Nil), fn(_) {
-                      action(args, string.concat(body), pos2)
+                      action(args, string.concat(body), data2)
                     }),
                   )
                   party.return(Some(el))
                 }
                 DynamicComponent(_) ->
                   party.return(
-                    Some(
+                    Some(#(
                       element.element(
                         component.name,
                         [
@@ -558,7 +619,8 @@ fn parse_component(components: List(Component)) -> ArcticParser {
                         ],
                         [],
                       ),
-                    ),
+                      get_state(data),
+                    )),
                   )
               }
             }),
@@ -598,9 +660,7 @@ fn parse_component(components: List(Component)) -> ArcticParser {
 }
 
 fn parse_page(
-  inline_rules: List(InlineRule),
-  prefix_rules: List(PrefixRule),
-  components: List(Component),
+  builder: ParserBuilder(a),
   src: String,
 ) -> Result(ParseResult(ParsedPage)) {
   // first pass: string to char list
@@ -636,22 +696,6 @@ fn parse_page(
     [h, ..t] -> Ok(#(h, t))
   })
   let meta_res = party.go(parse_metadata(dict.new()), meta_sec)
-  let body_res =
-    list.map(body, fn(sec) {
-      let #(line, str) = sec
-      case string.starts_with(str, "@") {
-        True -> parse_component(components).parse(str, Position(line, 0))
-        False ->
-          parse_text(inline_rules, prefix_rules).parse(str, Position(line, 0))
-      }
-    })
-  // fourth pass: collect ast and errors
-  let #(body_ast_rev, body_errors_rev) =
-    list.fold(over: body_res, from: #([], []), with: fn(so_far, res) {
-      let #(ast_so_far, errors_so_far) = so_far
-      #([res.val, ..ast_so_far], list.append(res.errors, errors_so_far))
-    })
-  // fifth pass: reverse ast and errors
   let metadata = case meta_res {
     Ok(sec) -> ParseResult(val: sec, errors: [])
     Error(err) -> {
@@ -673,8 +717,49 @@ fn parse_page(
       }
     }
   }
+  let #(_, body_rev_res) =
+    list.fold(
+      from: #(builder.start_state, []),
+      over: body,
+      with: fn(so_far, sec) {
+        let #(state, body_rev) = so_far
+        let #(line, str) = sec
+        let res = case string.starts_with(str, "@") {
+          True ->
+            parse_component(builder.components).parse(
+              str,
+              ParseData(
+                pos: Position(line, 0),
+                metadata: metadata.val,
+                state: builder.start_state,
+              ),
+            )
+          False ->
+            parse_text(builder.inline_rules, builder.prefix_rules).parse(
+              str,
+              ParseData(
+                pos: Position(line, 0),
+                metadata: metadata.val,
+                state: builder.start_state,
+              ),
+            )
+        }
+        let new_state = case res.val {
+          Some(#(_, s)) -> s
+          None -> state
+        }
+        #(new_state, [res, ..body_rev])
+      },
+    )
+  // fourth pass: collect ast and errors
+  let #(body_ast, body_errors) =
+    list.fold(over: body_rev_res, from: #([], []), with: fn(so_far, res) {
+      let #(ast_so_far, errors_so_far) = so_far
+      let val = option.map(res.val, fn(pair) { pair.0 })
+      #([val, ..ast_so_far], list.append(res.errors, errors_so_far))
+    })
   Ok(ParseResult(
-    val: ParsedPage(metadata.val, list.reverse(body_ast_rev)),
-    errors: list.append(metadata.errors, list.reverse(body_errors_rev)),
+    val: ParsedPage(metadata.val, body_ast),
+    errors: list.append(metadata.errors, body_errors),
   ))
 }
