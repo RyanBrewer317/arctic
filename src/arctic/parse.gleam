@@ -417,7 +417,7 @@ fn parse_markup(
   inline_rules: List(InlineRule(a)),
   until terminator: Parser(Nil, snag.Snag),
   given data: ParseData(a),
-) -> Parser(#(Element(Nil), a), snag.Snag) {
+) -> Parser(Result(#(Element(Nil), a)), snag.Snag) {
   party.choice(
     list.map(inline_rules, fn(rule) {
       use _ <- party.do(party.string(rule.left))
@@ -429,7 +429,7 @@ fn parse_markup(
           line: pos.line + party_pos.row,
           column: pos.column + party_pos.col,
         ))
-      use #(middle, new_state) <- party.do(
+      use res <- party.do(
         party.lazy(fn() {
           parse_markup(
             inline_rules,
@@ -438,6 +438,12 @@ fn parse_markup(
           )
         }),
       )
+      use #(middle, new_state) <- fn(k){
+        case res {
+          Ok(x) -> k(x)
+          Error(err) -> party.return(Error(err))
+        }
+      }
       let data3 = data2 |> with_state(new_state)
       use res <- party.do(party.perhaps(party.char("(")))
       use args <- party.do(case res {
@@ -451,7 +457,7 @@ fn parse_markup(
         }
         Error(Nil) -> party.return([])
       })
-      party.try(party.return(Nil), fn(_) { rule.action(middle, args, data3) })
+      party.return(rule.action(middle, args, data3))
     })
     |> list.append([
       party.until(
@@ -459,7 +465,7 @@ fn parse_markup(
         until: terminator,
       )
       |> party.map(fn(chars) {
-        #(
+        Ok(#(
           html.span(
             [],
             string.concat(chars)
@@ -468,7 +474,7 @@ fn parse_markup(
               |> list.intersperse(html.br([])),
           ),
           get_state(data),
-        )
+        ))
       }),
     ]),
   )
@@ -494,11 +500,12 @@ fn parse_text(
               line: pos.line + party_pos.row,
               column: pos.column + party_pos.col,
             ))
-          use #(rest, new_state) <- party.do(parse_markup(
+          use res <- party.do(parse_markup(
             inline_rules,
             until: party.end(),
             given: data2,
           ))
+          use #(rest, new_state) <- party.do(party.try(party.return(Nil), fn(_) { res }))
           let data3 = data2 |> with_state(new_state)
           use el <- party.do(case
             list.find(prefix_rules, fn(rule) { rule.prefix == prefix })
@@ -518,7 +525,7 @@ fn parse_text(
             }
             Error(Nil) ->
               party.return(#(
-                html.div([], [element.text(prefix), rest]),
+                html.p([], [element.text(prefix), rest]),
                 get_state(data3),
               ))
           })
