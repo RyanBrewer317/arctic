@@ -438,12 +438,13 @@ fn parse_markup(
           )
         }),
       )
-      use #(middle, new_state) <- fn(k){
-        case res {
-          Ok(x) -> k(x)
-          Error(err) -> party.return(Error(err))
+      use #(middle, new_state) <-
+        fn(k) {
+          case res {
+            Ok(x) -> k(x)
+            Error(err) -> party.return(Error(err))
+          }
         }
-      }
       let data3 = data2 |> with_state(new_state)
       use res <- party.do(party.perhaps(party.char("(")))
       use args <- party.do(case res {
@@ -505,7 +506,9 @@ fn parse_text(
             until: party.end(),
             given: data2,
           ))
-          use #(rest, new_state) <- party.do(party.try(party.return(Nil), fn(_) { res }))
+          use #(rest, new_state) <- party.do(
+            party.try(party.return(Nil), fn(_) { res }),
+          )
           let data3 = data2 |> with_state(new_state)
           use el <- party.do(case
             list.find(prefix_rules, fn(rule) { rule.prefix == prefix })
