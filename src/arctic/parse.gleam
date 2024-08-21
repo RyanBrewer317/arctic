@@ -566,7 +566,9 @@ fn parse_component(components: List(Component(a))) -> ArcticParser(a) {
           party.choice(
             list.map(components, fn(component) {
               use _ <- party.do(party.string(component.name))
-              use _ <- party.do(party.whitespace())
+              use _ <- party.do(
+                party.many(party.either(party.char(" "), party.char("\t"))),
+              )
               use res <- party.do(party.perhaps(party.char("(")))
               use args <- party.do(case res {
                 Ok(_) -> {
