@@ -13,7 +13,7 @@ links = [{ title = "Website", href = "https://ryanbrewer.dev" }]
 # https://gleam.run/writing-gleam/gleam-toml/.
 
 [dependencies]
-gleam_stdlib = ">= 0.34.0 and < 2.0.0"
+gleam_stdlib = ">= 0.40.0 and < 2.0.0"
 snag = ">= 0.3.0 and < 1.0.0"
 simplifile = ">= 1.0.1 and < 2.0.0"
 lustre_ssg = ">= 0.8.0 and < 1.0.0"
