@@ -20,7 +20,7 @@ pub fn new(id: String) -> Page {
 /// Add a "body" to a page. 
 /// A body is the list of elements that will appear when the page is loaded.
 pub fn with_body(p: Page, body: List(Element(Nil))) -> Page {
-  Page(p.id, body, p.metadata, p.title, p.blerb, p.tags, p.date)
+  Page(..p, body:)
 }
 
 /// Add some metadata to a page.
@@ -31,44 +31,36 @@ pub fn with_body(p: Page, body: List(Element(Nil))) -> Page {
 /// Also, note that some metadata gets privileged fields store in a different way, 
 /// like `.date`. This adds type safety and convenience, and is opt-in.
 pub fn with_metadata(p: Page, key: String, val: String) -> Page {
-  Page(
-    p.id,
-    p.body,
-    dict.insert(p.metadata, key, val),
-    p.title,
-    p.blerb,
-    p.tags,
-    p.date,
-  )
+  Page(..p, metadata: dict.insert(p.metadata, key, val))
 }
 
 /// Swap out the entirety of the metadata for a page with a new dictionary,
 /// except for the privileged metadata like `.title` and `.date`.
 /// This is useful for if you're building a metadata dictionary programmatically.
 pub fn replace_metadata(p: Page, metadata: Dict(String, String)) -> Page {
-  Page(p.id, p.body, metadata, p.title, p.blerb, p.tags, p.date)
+  Page(..p, metadata:)
 }
 
 /// Add a title to a page.
 pub fn with_title(p: Page, title: String) -> Page {
-  Page(p.id, p.body, p.metadata, title, p.blerb, p.tags, p.date)
+  Page(..p, title:)
 }
 
 /// Add a blerb (description, whatever) to a page.
 /// This is useful for nice thumbnails.
 pub fn with_blerb(p: Page, blerb: String) -> Page {
-  Page(p.id, p.body, p.metadata, p.title, blerb, p.tags, p.date)
+  Page(..p, blerb:)
 }
 
 /// Add tags to a page.
 /// This is useful for implementing a helpful search.
 pub fn with_tags(p: Page, tags: List(String)) -> Page {
-  Page(p.id, p.body, p.metadata, p.title, p.blerb, tags, p.date)
+  Page(..p, tags:)
 }
 
 /// Add a date to a page.
 /// This is useful for sorting pages by date in a list,
 /// like in a blog.
 pub fn with_date(p: Page, date: Time) -> Page {
-  Page(p.id, p.body, p.metadata, p.title, p.blerb, p.tags, Some(date))
+  Page(..p, date: Some(date))
 }

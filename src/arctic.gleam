@@ -2,6 +2,8 @@ import birl.{type Time}
 import gleam/dict.{type Dict}
 import gleam/option.{type Option}
 import gleam/order.{type Order}
+import gleam/result
+import gleam/string
 import lustre/element.{type Element}
 import snag.{type Result}
 
@@ -18,8 +20,8 @@ pub type Collection {
   Collection(
     directory: String,
     parse: fn(String, String) -> Result(Page),
-    index: Option(fn(List(Page)) -> Element(Nil)),
-    feed: Option(#(String, fn(List(Page)) -> String)),
+    index: Option(fn(List(CacheablePage)) -> Element(Nil)),
+    feed: Option(#(String, fn(List(CacheablePage)) -> String)),
     ordering: fn(Page, Page) -> Order,
     render: fn(Page) -> Element(Nil),
     raw_pages: List(RawPage),
@@ -46,9 +48,35 @@ pub type Page {
   )
 }
 
+pub type CacheablePage {
+  CachedPage(path: String, metadata: Dict(String, String))
+  NewPage(Page)
+}
+
+pub fn to_dummy_page(c: CacheablePage) -> Page {
+  case c {
+    CachedPage(path, metadata) -> {
+      let title = metadata |> dict.get("title") |> result.unwrap("")
+      let blerb = metadata |> dict.get("blerb") |> result.unwrap("")
+      let tags =
+        metadata
+        |> dict.get("tags")
+        |> result.map(string.split(_, on: ","))
+        |> result.unwrap([])
+      let date =
+        metadata
+        |> dict.get("date")
+        |> result.try(birl.parse)
+        |> option.from_result
+      Page(path, [], metadata:, title:, blerb:, tags:, date:)
+    }
+    NewPage(p) -> p
+  }
+}
+
 /// A collection whose pages have been processed from the files.
 pub type ProcessedCollection {
-  ProcessedCollection(collection: Collection, pages: List(Page))
+  ProcessedCollection(collection: Collection, pages: List(CacheablePage))
 }
 
 /// A page that is just HTML produced by hand.

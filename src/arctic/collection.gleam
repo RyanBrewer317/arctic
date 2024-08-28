@@ -1,4 +1,6 @@
-import arctic.{type Collection, type Page, Collection, RawPage}
+import arctic.{
+  type CacheablePage, type Collection, type Page, Collection, RawPage,
+}
 import arctic/parse
 import gleam/int
 import gleam/option.{None, Some}
@@ -39,15 +41,7 @@ pub fn with_parser(
   c: Collection,
   parser: fn(String, String) -> Result(Page),
 ) -> Collection {
-  Collection(
-    c.directory,
-    parser,
-    c.index,
-    c.feed,
-    c.ordering,
-    c.render,
-    c.raw_pages,
-  )
+  Collection(..c, parse: parser)
 }
 
 /// A simple default parser for the sorts of things you'd expect when writing markup.
@@ -88,17 +82,9 @@ pub fn default_parser() -> fn(String, String) -> Result(Page) {
 /// it's pretty easy to swap it out with something else when the number gets too high.
 pub fn with_index(
   c: Collection,
-  index: fn(List(Page)) -> Element(Nil),
+  index: fn(List(CacheablePage)) -> Element(Nil),
 ) -> Collection {
-  Collection(
-    c.directory,
-    c.parse,
-    Some(index),
-    c.feed,
-    c.ordering,
-    c.render,
-    c.raw_pages,
-  )
+  Collection(..c, index: Some(index))
 }
 
 /// Add a "feed" to the collection.
@@ -107,17 +93,9 @@ pub fn with_index(
 pub fn with_feed(
   c: Collection,
   filename: String,
-  render: fn(List(Page)) -> String,
+  render: fn(List(CacheablePage)) -> String,
 ) -> Collection {
-  Collection(
-    c.directory,
-    c.parse,
-    c.index,
-    Some(#(filename, render)),
-    c.ordering,
-    c.render,
-    c.raw_pages,
-  )
+  Collection(..c, feed: Some(#(filename, render)))
 }
 
 /// Add an ordering to a collection.
@@ -127,15 +105,7 @@ pub fn with_ordering(
   c: Collection,
   ordering: fn(Page, Page) -> Order,
 ) -> Collection {
-  Collection(
-    c.directory,
-    c.parse,
-    c.index,
-    c.feed,
-    ordering,
-    c.render,
-    c.raw_pages,
-  )
+  Collection(..c, ordering:)
 }
 
 /// Add a "renderer" to a collection.
@@ -144,15 +114,7 @@ pub fn with_renderer(
   c: Collection,
   renderer: fn(Page) -> Element(Nil),
 ) -> Collection {
-  Collection(
-    c.directory,
-    c.parse,
-    c.index,
-    c.feed,
-    c.ordering,
-    renderer,
-    c.raw_pages,
-  )
+  Collection(..c, render: renderer)
 }
 
 /// Add a "raw page" to a collection.
@@ -163,8 +125,5 @@ pub fn with_raw_page(
   id: String,
   body: Element(Nil),
 ) -> Collection {
-  Collection(c.directory, c.parse, c.index, c.feed, c.ordering, c.render, [
-    RawPage(id, body),
-    ..c.raw_pages
-  ])
+  Collection(..c, raw_pages: [RawPage(id, body), ..c.raw_pages])
 }

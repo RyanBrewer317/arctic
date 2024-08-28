@@ -3,6 +3,7 @@ import arctic/page
 import birl
 import gleam/dict.{type Dict}
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -413,11 +414,13 @@ fn escaped_char() -> Parser(String, snag.Snag) {
   }
 }
 
-fn parse_markup(
+fn parse_inline_rule(
   inline_rules: List(InlineRule(a)),
-  until terminator: Parser(Nil, snag.Snag),
   given data: ParseData(a),
-) -> Parser(Result(#(Element(Nil), a)), snag.Snag) {
+) -> Parser(
+  fn(ParseData(a)) -> #(Result(Element(Nil)), ParseData(a)),
+  snag.Snag,
+) {
   party.choice(
     list.map(inline_rules, fn(rule) {
       use _ <- party.do(party.string(rule.left))
@@ -429,23 +432,19 @@ fn parse_markup(
           line: pos.line + party_pos.row,
           column: pos.column + party_pos.col,
         ))
-      use res <- party.do(
-        party.lazy(fn() {
-          parse_markup(
-            inline_rules,
-            until: party.map(party.string(rule.right), fn(_) { Nil }),
-            given: data2,
-          )
-        }),
+      use #(middle, data3) <- party.do(
+        party.try(
+          party.lazy(fn() {
+            parse_markup(
+              inline_rules,
+              until: party.map(party.string(rule.right), fn(_) { Nil }),
+              given: data2,
+            )
+          }),
+          fn(a) { a },
+        ),
       )
-      use #(middle, new_state) <-
-        fn(k) {
-          case res {
-            Ok(x) -> k(x)
-            Error(err) -> party.return(Error(err))
-          }
-        }
-      let data3 = data2 |> with_state(new_state)
+      use _ <- party.do(party.string(rule.right))
       use res <- party.do(party.perhaps(party.char("(")))
       use args <- party.do(case res {
         Ok(_) -> {
@@ -456,29 +455,45 @@ fn parse_markup(
           use _ <- party.do(party.char(")"))
           party.return(args)
         }
-        Error(Nil) -> party.return([])
+        Error(Nil) -> {
+          party.return([])
+        }
       })
-      party.return(rule.action(middle, args, data3))
-    })
-    |> list.append([
-      party.until(
-        do: party.either(escaped_char(), party.satisfy(fn(_) { True })),
-        until: terminator,
-      )
-      |> party.map(fn(chars) {
-        Ok(#(
-          html.span(
-            [],
-            string.concat(chars)
-              |> string.split("\n")
-              |> list.map(element.text)
-              |> list.intersperse(html.br([])),
-          ),
-          get_state(data),
-        ))
-      }),
-    ]),
+      party.return(fn(d) {
+        let d2 = with_pos(d, get_pos(data3))
+        invert_res(rule.action(middle, args, d2), d2)
+      })
+    }),
   )
+}
+
+fn invert_res(res, d) {
+  case res {
+    Ok(#(el, state)) -> #(Ok(el), d |> with_state(state))
+    Error(s) -> #(Error(s), d)
+  }
+}
+
+fn parse_markup(
+  inline_rules: List(InlineRule(a)),
+  until terminator: Parser(Nil, snag.Snag),
+  given data: ParseData(a),
+) -> Parser(Result(#(Element(Nil), ParseData(a))), snag.Snag) {
+  party.choice([
+    parse_inline_rule(inline_rules, given: data),
+    party.map(escaped_char(), fn(c) { fn(d) { #(Ok(element.text(c)), d) } }),
+    {
+      use _ <- party.do(party.not(terminator))
+      use c <- party.do(party.satisfy(fn(_) { True }))
+      party.return(fn(d) { #(Ok(element.text(c)), d) })
+    },
+  ])
+  |> party.stateful_many(data, _)
+  |> party.map(fn(pair) {
+    let #(results, last_data) = pair
+    use parts <- result.try(result.all(results))
+    Ok(#(html.span([], parts), last_data))
+  })
 }
 
 fn parse_text(
@@ -506,10 +521,9 @@ fn parse_text(
             until: party.end(),
             given: data2,
           ))
-          use #(rest, new_state) <- party.do(
+          use #(rest, data3) <- party.do(
             party.try(party.return(Nil), fn(_) { res }),
           )
-          let data3 = data2 |> with_state(new_state)
           use el <- party.do(case
             list.find(prefix_rules, fn(rule) { rule.prefix == prefix })
           {
@@ -735,6 +749,8 @@ fn parse_page(
       }
     }
   }
+  let id = metadata.val |> dict.get("id") |> result.unwrap("[no id]")
+  io.print("Starting `" <> id <> "`.")
   let #(_, body_rev_res) =
     list.fold(
       from: #(builder.start_state, []),
@@ -746,20 +762,12 @@ fn parse_page(
           True ->
             parse_component(builder.components).parse(
               str,
-              ParseData(
-                pos: Position(line, 0),
-                metadata: metadata.val,
-                state: builder.start_state,
-              ),
+              ParseData(pos: Position(line, 0), metadata: metadata.val, state:),
             )
           False ->
             parse_text(builder.inline_rules, builder.prefix_rules).parse(
               str,
-              ParseData(
-                pos: Position(line, 0),
-                metadata: metadata.val,
-                state: builder.start_state,
-              ),
+              ParseData(pos: Position(line, 0), metadata: metadata.val, state:),
             )
         }
         let new_state = case res.val {
@@ -776,6 +784,7 @@ fn parse_page(
       let val = option.map(res.val, fn(pair) { pair.0 })
       #([val, ..ast_so_far], list.append(res.errors, errors_so_far))
     })
+  io.println("Finished `" <> id <> "`.")
   Ok(ParseResult(
     val: ParsedPage(metadata.val, body_ast),
     errors: list.append(metadata.errors, body_errors),
