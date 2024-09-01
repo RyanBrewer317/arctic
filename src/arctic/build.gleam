@@ -3,16 +3,19 @@ import arctic.{
   type ProcessedCollection, type RawPage, CachedPage, NewPage,
   ProcessedCollection,
 }
+import birl
 import gleam/bit_array
 import gleam/crypto
 import gleam/dict.{type Dict}
+import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order.{type Order}
 import gleam/result.{map_error}
 import gleam/string
-import gsv
 import lustre/ssg
+import party
 import simplifile
 import snag.{type Result}
 
@@ -72,6 +75,44 @@ fn to_cache(csv: List(List(String))) -> Result(Cache) {
   }
 }
 
+fn parse_csv(csv: String) -> Result(List(List(String))) {
+  let res =
+    party.go(
+      {
+        use _ <- party.do(party.char("\""))
+        use val <- party.do(
+          party.many_concat(party.either(
+            party.map(party.string("\"\""), fn(_) { "\"" }),
+            party.satisfy(fn(c) { c != "\"" }),
+          )),
+        )
+        use _ <- party.do(party.char("\""))
+        party.return(val)
+      }
+        |> party.sep(by: party.char(","))
+        |> fn(p) {
+          party.do(p, fn(row) { party.seq(party.char("\n"), party.return(row)) })
+        }
+        |> party.many(),
+      csv,
+    )
+  map_error(res, fn(e) {
+    case e {
+      party.Unexpected(p, s) ->
+        snag.new(
+          s <> " at " <> int.to_string(p.row) <> ":" <> int.to_string(p.col),
+        )
+      party.UserError(p, Nil) ->
+        snag.new(
+          "internal Arctic error at "
+          <> int.to_string(p.row)
+          <> ":"
+          <> int.to_string(p.col),
+        )
+    }
+  })
+}
+
 fn read_collection(
   collection: Collection,
   cache: Cache,
@@ -101,16 +142,51 @@ fn read_collection(
       }),
     )
     let new_hash = crypto.hash(crypto.Sha256, bit_array.from_string(content))
+    io.debug(path)
+    io.debug(new_hash)
     case dict.get(cache, path) {
       Ok(#(current_hash, metadata)) if current_hash == new_hash ->
         Ok([CachedPage(path, metadata), ..so_far])
       _ -> {
         // something changed or the page is new
+        io.debug("new page!")
+        let _ = io.debug(dict.get(cache, path))
         use p <- result.try(collection.parse(path, content))
         use _ <- result.try(
           simplifile.append(
             ".arctic_cache.csv",
-            path <> "," <> bit_array.base64_encode(new_hash, False) <> ",",
+            "\""
+              <> string.replace(path, each: "\"", with: "\"\"")
+              <> "\",\""
+              <> bit_array.base64_encode(new_hash, False)
+              <> "\",\"id:"
+              <> string.replace(p.id, each: "\"", with: "\"\"")
+              <> "\",\"title:"
+              <> string.replace(p.title, each: "\"", with: "\"\"")
+              <> "\""
+              <> option.unwrap(
+              option.map(p.date, fn(d) {
+                ",\"date:" <> birl.to_naive_date_string(d) <> "\""
+              }),
+              "",
+            )
+              <> ",\"tags:"
+              <> string.join(
+              list.map(p.tags, string.replace(_, "\"", "\"\"")),
+              ",",
+            )
+              <> "\",\"blerb:"
+              <> string.replace(p.blerb, "\"", "\"\"")
+              <> "\""
+              <> dict.fold(over: p.metadata, from: "", with: fn(b, k, v) {
+              b
+              <> ",\""
+              <> string.replace(k, "\"", "\"\"")
+              <> ":"
+              <> string.replace(v, "\"", "\"\"")
+              <> "\""
+            })
+              <> "\n",
           )
           |> map_error(fn(err) {
             snag.new(
@@ -147,10 +223,12 @@ pub fn build(config: Config) -> Result(Nil) {
       snag.new("couldn't read cache (" <> simplifile.describe_error(err) <> ")")
     }),
   )
-  use csv <- result.try(
-    gsv.to_lists_or_error(content)
-    |> map_error(fn(err) { snag.new("couldn't parse cache (" <> err <> ")") }),
-  )
+  use csv <- result.try(case content {
+    "" -> Ok([])
+    _ ->
+      parse_csv(content)
+      |> snag.context("couldn't parse cache")
+  })
   use cache <- result.try(to_cache(csv))
   use processed_collections <- result.try(process(config.collections, cache))
   use ssg_config <- make_ssg_config(processed_collections, config)
@@ -207,8 +285,14 @@ fn make_ssg_config(
                 processed.collection.render(new_page),
               )
             CachedPage(path, _) -> {
-              let assert Ok(content) = simplifile.read(path)
-              ssg.add_static_asset(s, path, content)
+              let assert [start, .._] = string.split(path, ".txt")
+              let cached_path = "arctic_build/"<>start<>"/index.html"
+              let res = simplifile.read(cached_path)
+              let content = case res {
+                Ok(c) -> c
+                Error(_) -> panic as cached_path
+              }
+              ssg.add_static_asset(s, "/"<>start<>"/index.html", content)
             }
           }
         })

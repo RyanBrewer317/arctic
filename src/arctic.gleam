@@ -55,7 +55,7 @@ pub type CacheablePage {
 
 pub fn to_dummy_page(c: CacheablePage) -> Page {
   case c {
-    CachedPage(path, metadata) -> {
+    CachedPage(_, metadata) -> {
       let title = metadata |> dict.get("title") |> result.unwrap("")
       let blerb = metadata |> dict.get("blerb") |> result.unwrap("")
       let tags =
@@ -68,10 +68,25 @@ pub fn to_dummy_page(c: CacheablePage) -> Page {
         |> dict.get("date")
         |> result.try(birl.parse)
         |> option.from_result
-      Page(path, [], metadata:, title:, blerb:, tags:, date:)
+      Page(get_id(c), [], metadata:, title:, blerb:, tags:, date:)
     }
     NewPage(p) -> p
   }
+}
+
+pub fn get_id(p: CacheablePage) -> String {
+  case p {
+    CachedPage(_, metadata) -> {
+      let assert Ok(id) = dict.get(metadata, "id")
+      id
+    }
+    NewPage(page) -> page.id
+  }
+}
+
+pub fn output_path(input_path: String) -> String {
+  let assert [start, ""] = string.split(input_path, ".txt")
+  "arctic_build/" <> start <> "/index.html"
 }
 
 /// A collection whose pages have been processed from the files.
