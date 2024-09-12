@@ -750,7 +750,7 @@ fn parse_page(
     }
   }
   let id = metadata.val |> dict.get("id") |> result.unwrap("[no id]")
-  io.print("Starting `" <> id <> "`.")
+  io.print("Starting `" <> id <> "`. ")
   let #(_, body_rev_res) =
     list.fold(
       from: #(builder.start_state, []),

@@ -8,7 +8,6 @@ import gleam/bit_array
 import gleam/crypto
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order.{type Order}
@@ -142,15 +141,11 @@ fn read_collection(
       }),
     )
     let new_hash = crypto.hash(crypto.Sha256, bit_array.from_string(content))
-    io.debug(path)
-    io.debug(new_hash)
     case dict.get(cache, path) {
       Ok(#(current_hash, metadata)) if current_hash == new_hash ->
         Ok([CachedPage(path, metadata), ..so_far])
       _ -> {
         // something changed or the page is new
-        io.debug("new page!")
-        let _ = io.debug(dict.get(cache, path))
         use p <- result.try(collection.parse(path, content))
         use _ <- result.try(
           simplifile.append(
@@ -229,7 +224,9 @@ pub fn build(config: Config) -> Result(Nil) {
       parse_csv(content)
       |> snag.context("couldn't parse cache")
   })
-  use cache <- result.try(to_cache(csv))
+  // the reverse is so that later entries override earlier ones
+  // In the future we should also clean up the cache file, at least periodically.
+  use cache <- result.try(to_cache(list.reverse(csv)))
   use processed_collections <- result.try(process(config.collections, cache))
   use ssg_config <- make_ssg_config(processed_collections, config)
   use <- ssg_build(ssg_config)
@@ -285,14 +282,14 @@ fn make_ssg_config(
                 processed.collection.render(new_page),
               )
             CachedPage(path, _) -> {
-              let assert [start, .._] = string.split(path, ".txt")
-              let cached_path = "arctic_build/"<>start<>"/index.html"
+              let assert [start, ..] = string.split(path, ".txt")
+              let cached_path = "arctic_build/" <> start <> "/index.html"
               let res = simplifile.read(cached_path)
               let content = case res {
                 Ok(c) -> c
                 Error(_) -> panic as cached_path
               }
-              ssg.add_static_asset(s, "/"<>start<>"/index.html", content)
+              ssg.add_static_asset(s, "/" <> start <> "/index.html", content)
             }
           }
         })
