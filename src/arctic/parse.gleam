@@ -449,7 +449,7 @@ fn parse_inline_rule(
       use args <- party.do(case res {
         Ok(_) -> {
           use args <- party.do(party.sep(
-            party.many_concat(party.satisfy(fn(c) { c != "," && c != ")" })),
+            party.many_concat(party.either(escaped_char(), party.satisfy(fn(c) { c != "," && c != ")" }))),
             by: party.char(","),
           ))
           use _ <- party.do(party.char(")"))
