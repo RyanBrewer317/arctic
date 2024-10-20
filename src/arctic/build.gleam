@@ -279,7 +279,7 @@ document.addEventListener('click', async function(e) {
   } catch {
     return;
   }
-}
+});
 function find_a(target) {
   if (!target || target.tagName === 'BODY') return null;
   if (target.tagName === 'A') return target;
