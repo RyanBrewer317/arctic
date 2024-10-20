@@ -250,32 +250,31 @@ fn spa(
         [],
         "
 // algorithm stolen from Hayleigh Thompson's wonderful Modem library
+async function go_to(url) {
+  window.history.pushState({}, '', a.href);
+  window.requestAnimationFrame(() => {
+    // scroll in #-link elements, as the browser would if we didn't preventDefault
+    if (url.hash) {
+      document.getElementById(url.hash.slice(1))?.scrollIntoView();
+    }
+  });
+  // handle new path
+  console.log(url.pathname);
+  const response = await fetch('/__pages/' + url.pathname + '/index.html');
+  if (!response.ok) response = await fetch('/__pages/404.html');
+  if (!response.ok) return;
+  const html = await response.text();
+  document.getElementById('arctic-app').innerHTML = html;
+}
 document.addEventListener('click', async function(e) {
   const a = find_a(e.target);
   if (!a) return;
   try {
     const url = new URL(a.href);
-
     const is_external = url.host !== window.location.host;
     if (is_external) return;
-
     event.preventDefault();
-
-    window.history.pushState({}, '', a.href);
-    window.requestAnimationFrame(() => {
-      // scroll in #-link elements, as the browser would if we didn't preventDefault
-      if (url.hash) {
-        document.getElementById(url.hash.slice(1))?.scrollIntoView();
-      }
-    });
-
-    // handle new path
-    console.log(url.pathname);
-    const response = await fetch('/__pages/' + url.pathname + '/index.html');
-    if (!response.ok) response = await fetch('/__pages/404.html');
-    if (!response.ok) return;
-    const html = await response.text();
-    document.getElementById('arctic-app').innerHTML = html;
+    go_to(url);
   } catch {
     return;
   }
@@ -284,6 +283,9 @@ function find_a(target) {
   if (!target || target.tagName === 'BODY') return null;
   if (target.tagName === 'A') return target;
   return find_a(target.parentElement);
+}
+if (window.location.pathname !== '/') {
+  go_to(new URL(window.location.href));
 }
   ",
       ),
