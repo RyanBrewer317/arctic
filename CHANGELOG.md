@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.0alpha] - 2024-10-20
+
+### Changed
+
+ - generated apps now operate as SPAs that pull statically-generated HTML to fill the body.
+ - `Config` now has a `render_spa` field to specify the code that doesn't get re-rendered on navigation in the client. This starts as an identity function by default, meaning the whole page is re-rendered on navigation.
+
 ## [10.0.1] - 2024-10-11
 
 ### Added

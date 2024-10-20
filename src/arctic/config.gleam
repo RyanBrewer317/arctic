@@ -16,6 +16,7 @@ pub fn new() -> Config {
     },
     main_pages: [],
     collections: [],
+    render_spa: fn(body) { body }
   )
 }
 
@@ -41,4 +42,8 @@ pub fn add_main_page(config: Config, id: String, body: Element(Nil)) {
 /// See `arctic/collection` for more.
 pub fn add_collection(config: Config, collection: Collection) {
   Config(..config, collections: [collection, ..config.collections])
+}
+
+pub fn add_spa_frame(config: Config, render_spa: fn(Element(Nil))->Element(Nil)) {
+  Config(..config, render_spa:)
 }

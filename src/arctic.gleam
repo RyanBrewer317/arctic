@@ -105,5 +105,6 @@ pub type Config {
     render_home: fn(List(ProcessedCollection)) -> Element(Nil),
     main_pages: List(RawPage),
     collections: List(Collection),
+    render_spa: fn(Element(Nil)) -> Element(Nil),
   )
 }

@@ -13,6 +13,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/order.{type Order}
 import gleam/result.{map_error}
 import gleam/string
+import lustre/attribute
+import lustre/element.{type Element}
+import lustre/element/html
 import lustre/ssg
 import party
 import simplifile
@@ -236,18 +239,72 @@ pub fn build(config: Config) -> Result(Nil) {
   Ok(Nil)
 }
 
+fn spa(
+  frame: fn(Element(Nil)) -> Element(Nil),
+  home: Element(Nil),
+) -> Element(Nil) {
+  frame(
+    html.div([], [
+      html.div([attribute.id("arctic-app")], [home]),
+      html.script(
+        [],
+        "
+// algorithm stolen from Hayleigh Thompson's wonderful Modem library
+document.addEventListener('click', async function(e) {
+  const a = find_a(e.target);
+  if (!a) return;
+  try {
+    const url = new URL(a.href);
+
+    const is_external = url.host !== window.location.host;
+    if (is_external) return;
+
+    event.preventDefault();
+
+    window.history.pushState({}, '', a.href);
+    window.requestAnimationFrame(() => {
+      // scroll in #-link elements, as the browser would if we didn't preventDefault
+      if (url.hash) {
+        document.getElementById(url.hash.slice(1))?.scrollIntoView();
+      }
+    });
+
+    // handle new path
+    console.log(url.pathname);
+    const response = await fetch('/__pages/' + url.pathname + '/index.html');
+    if (!response.ok) response = await fetch('/__pages/404.html');
+    if (!response.ok) return;
+    const html = await response.text();
+    document.getElementById('arctic-app').innerHTML = html;
+  } catch {
+    return;
+  }
+}
+function find_a(target) {
+  if (!target || target.tagName === 'BODY') return null;
+  if (target.tagName === 'A') return target;
+  return find_a(target.parentElement);
+}
+  ",
+      ),
+    ]),
+  )
+}
+
 fn make_ssg_config(
   processed_collections: List(ProcessedCollection),
   config: Config,
   k: fn(ssg.Config(ssg.HasStaticRoutes, ssg.NoStaticDir, ssg.UseIndexRoutes)) ->
     Result(Nil),
 ) -> Result(Nil) {
+  let home = config.render_home(processed_collections)
   use ssg_config <- result.try(
     ssg.new("arctic_build")
     |> ssg.use_index_routes()
-    |> ssg.add_static_route("/", config.render_home(processed_collections))
+    |> ssg.add_static_route("/", spa(config.render_spa, home))
+    |> ssg.add_static_route("/__pages/", home)
     |> list.fold(over: config.main_pages, with: fn(ssg_config, page) {
-      ssg.add_static_route(ssg_config, "/" <> page.id, page.html)
+      ssg.add_static_route(ssg_config, "/__pages/" <> page.id, page.html)
     })
     |> list.try_fold(
       over: processed_collections,
@@ -256,7 +313,7 @@ fn make_ssg_config(
           Some(render) ->
             ssg.add_static_route(
               ssg_config,
-              "/" <> processed.collection.directory,
+              "/__pages/" <> processed.collection.directory,
               render(processed.pages),
             )
           None -> ssg_config
@@ -268,7 +325,7 @@ fn make_ssg_config(
             with: fn(s, rp: RawPage) {
               ssg.add_static_route(
                 s,
-                "/" <> processed.collection.directory <> "/" <> rp.id,
+                "/__pages/" <> processed.collection.directory <> "/" <> rp.id,
                 rp.html,
               )
             },
@@ -278,7 +335,10 @@ fn make_ssg_config(
             NewPage(new_page) ->
               ssg.add_static_route(
                 s,
-                "/" <> processed.collection.directory <> "/" <> new_page.id,
+                "/__pages/"
+                  <> processed.collection.directory
+                  <> "/"
+                  <> new_page.id,
                 processed.collection.render(new_page),
               )
             CachedPage(path, _) -> {
@@ -289,7 +349,11 @@ fn make_ssg_config(
                 Ok(c) -> c
                 Error(_) -> panic as cached_path
               }
-              ssg.add_static_asset(s, "/" <> start <> "/index.html", content)
+              ssg.add_static_asset(
+                s,
+                "/__pages/" <> start <> "/index.html",
+                content,
+              )
             }
           }
         })
