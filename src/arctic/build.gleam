@@ -251,7 +251,7 @@ fn spa(
         "
 // algorithm stolen from Hayleigh Thompson's wonderful Modem library
 async function go_to(url) {
-  window.history.pushState({}, '', a.href);
+  window.history.pushState({}, '', url.href);
   window.requestAnimationFrame(() => {
     // scroll in #-link elements, as the browser would if we didn't preventDefault
     if (url.hash) {
