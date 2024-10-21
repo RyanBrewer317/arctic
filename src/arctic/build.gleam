@@ -356,7 +356,7 @@ fn make_ssg_config(
               )
             CachedPage(path, _) -> {
               let assert [start, ..] = string.split(path, ".txt")
-              let cached_path = "arctic_build/" <> start <> "/index.html"
+              let cached_path = "arctic_build" <> dir <> start <> "/index.html"
               let res = simplifile.read(cached_path)
               let content = case res {
                 Ok(c) -> c
@@ -493,12 +493,17 @@ fn add_vite_config(
   k: fn() -> Result(Nil),
 ) -> Result(Nil) {
   let home_page = "\"main\": \"arctic_build/index.html\""
+  let dir = case config.render_spa {
+    Some(_) -> "/__pages/"
+    None -> "/"
+  }
   let main_pages =
     list.fold(over: config.main_pages, from: "", with: fn(js, page) {
       js
       <> "\""
       <> page.id
-      <> "\": \"arctic_build/"
+      <> "\": \"arctic_build"
+      <> dir
       <> page.id
       <> "/index.html\", "
     })
@@ -510,7 +515,8 @@ fn add_vite_config(
         <> processed.collection.directory
         <> "/"
         <> get_id(page)
-        <> "\": \"arctic_build/"
+        <> "\": \"arctic_build"
+        <> dir
         <> processed.collection.directory
         <> "/"
         <> get_id(page)
