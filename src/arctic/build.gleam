@@ -250,13 +250,13 @@ fn spa(
         [],
         "
 if (window.location.pathname !== '/') {
-  go_to(new URL(window.location.href));
+  go_to(new URL(window.location.href), true, true);
 }
 // SPA algorithm stolen from Hayleigh Thompson's wonderful Modem library
-async function go_to(url, no_loader) {
+async function go_to(url, loader, back) {
   const $app = document.getElementById('arctic-app');
-  if (!no_loader) $app.innerHTML = '<div id=\"arctic-loader\"></div>';
-  window.history.pushState({}, '', url.href);
+  if (loader) $app.innerHTML = '<div id=\"arctic-loader\"></div>';
+  if (!back) window.history.pushState({}, '', url.href);
   window.requestAnimationFrame(() => {
     // scroll in #-link elements, as the browser would if we didn't preventDefault
     if (url.hash) {
@@ -279,7 +279,7 @@ document.addEventListener('click', async function(e) {
     const is_external = url.host !== window.location.host;
     if (is_external) return;
     event.preventDefault();
-    go_to(url);
+    go_to(url, false, false);
   } catch {
     return;
   }
@@ -287,7 +287,7 @@ document.addEventListener('click', async function(e) {
 window.addEventListener('popstate', (e) => {
   e.preventDefault();
   const url = new URL(window.location.href);
-  go_to(url);
+  go_to(url, false, true);
 });
 function find_a(target) {
   if (!target || target.tagName === 'BODY') return null;
