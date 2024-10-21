@@ -279,10 +279,15 @@ document.addEventListener('click', async function(e) {
     const is_external = url.host !== window.location.host;
     if (is_external) return;
     event.preventDefault();
-    go_to(url, true);
+    go_to(url);
   } catch {
     return;
   }
+});
+window.addEventListener('popstate', (e) => {
+  e.preventDefault();
+  const url = new URL(window.location.href);
+  go_to(url);
 });
 function find_a(target) {
   if (!target || target.tagName === 'BODY') return null;
