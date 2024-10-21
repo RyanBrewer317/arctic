@@ -3,6 +3,7 @@ import arctic.{
 }
 import lustre/element.{type Element, text}
 import lustre/element/html
+import gleam/option.{Some, None}
 
 /// Produce a new Arctic configuration, with default settings.
 /// An Arctic configuration holds all the collections, pages, parsing rules, etc.
@@ -16,7 +17,7 @@ pub fn new() -> Config {
     },
     main_pages: [],
     collections: [],
-    render_spa: fn(body) { body }
+    render_spa: Some(fn(body) { body })
   )
 }
 
@@ -44,6 +45,15 @@ pub fn add_collection(config: Config, collection: Collection) {
   Config(..config, collections: [collection, ..config.collections])
 }
 
-pub fn add_spa_frame(config: Config, render_spa: fn(Element(Nil))->Element(Nil)) {
-  Config(..config, render_spa:)
+/// Specify code that is on the outside of a page, 
+/// and doesn't get re-rendered on page navigation.
+/// This can be nav bars, a `head` element, side panels, footer, etc.
+pub fn add_spa_frame(config: Config, frame: fn(Element(Nil))->Element(Nil)) {
+  Config(..config, render_spa: Some(frame))
+}
+
+/// Generate the site as a directory of files,
+/// instead of as a single-page app with clever routing.
+pub fn turn_off_spa(config: Config) {
+  Config(..config, render_spa: None)
 }

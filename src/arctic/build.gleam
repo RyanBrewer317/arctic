@@ -302,13 +302,22 @@ fn make_ssg_config(
     Result(Nil),
 ) -> Result(Nil) {
   let home = config.render_home(processed_collections)
+  let dir = case config.render_spa {
+    Some(_) -> "/__pages/"
+    None -> "/"
+  }
   use ssg_config <- result.try(
     ssg.new("arctic_build")
     |> ssg.use_index_routes()
-    |> ssg.add_static_route("/", spa(config.render_spa, home))
-    |> ssg.add_static_route("/__pages/", home)
+    |> ssg.add_static_route(dir, home)
+    |> fn(ssg_config) {
+      case config.render_spa {
+        Some(frame) -> ssg.add_static_route(ssg_config, "/", spa(frame, home))
+        None -> ssg_config
+      }
+    }
     |> list.fold(over: config.main_pages, with: fn(ssg_config, page) {
-      ssg.add_static_route(ssg_config, "/__pages/" <> page.id, page.html)
+      ssg.add_static_route(ssg_config, dir <> page.id, page.html)
     })
     |> list.try_fold(
       over: processed_collections,
@@ -317,7 +326,7 @@ fn make_ssg_config(
           Some(render) ->
             ssg.add_static_route(
               ssg_config,
-              "/__pages/" <> processed.collection.directory,
+              dir <> processed.collection.directory,
               render(processed.pages),
             )
           None -> ssg_config
@@ -329,7 +338,7 @@ fn make_ssg_config(
             with: fn(s, rp: RawPage) {
               ssg.add_static_route(
                 s,
-                "/__pages/" <> processed.collection.directory <> "/" <> rp.id,
+                dir <> processed.collection.directory <> "/" <> rp.id,
                 rp.html,
               )
             },
@@ -339,7 +348,7 @@ fn make_ssg_config(
             NewPage(new_page) ->
               ssg.add_static_route(
                 s,
-                "/__pages/"
+                dir
                   <> processed.collection.directory
                   <> "/"
                   <> new_page.id,
@@ -355,7 +364,7 @@ fn make_ssg_config(
               }
               ssg.add_static_asset(
                 s,
-                "/__pages/" <> start <> "/index.html",
+                dir <> start <> "/index.html",
                 content,
               )
             }

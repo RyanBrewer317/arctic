@@ -5,12 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [11.0.0-alpha] - 2024-10-20
+## [11.0.0] - 2024-10-20
 
 ### Changed
 
  - generated apps now operate as SPAs that pull statically-generated HTML to fill the body.
- - `Config` now has a `render_spa` field to specify the code that doesn't get re-rendered on navigation in the client. This starts as an identity function by default, meaning the whole page is re-rendered on navigation.
+ - `Config` now has a `render_spa` field to specify the code that doesn't get re-rendered on navigation in the client. This starts as an identity function by default, meaning the whole page is re-rendered on navigation. See next bullet for messing with this field.
+ - The configuration builder now has `add_spa_frame` for specifying parts of a page that don't get re-rendered on navigation, and `turn_off_spa` to use the old-fashioned static site page redirects.
 
 ## [10.0.1] - 2024-10-11
 
