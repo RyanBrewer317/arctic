@@ -254,6 +254,11 @@ if (window.location.pathname !== '/') {
 }
 // SPA algorithm stolen from Hayleigh Thompson's wonderful Modem library
 async function go_to(url, loader, back) {
+  if (url.pathname === window.location.pathname) {
+    if (url.hash) document.getElementById(url.hash.slice(1))?.scrollIntoView();
+    else document.body.scrollIntoView();
+    return;
+  }
   const $app = document.getElementById('arctic-app');
   if (loader) $app.innerHTML = '<div id=\"arctic-loader\"></div>';
   if (!back) window.history.pushState({}, '', url.href);
@@ -353,10 +358,7 @@ fn make_ssg_config(
             NewPage(new_page) ->
               ssg.add_static_route(
                 s,
-                dir
-                  <> processed.collection.directory
-                  <> "/"
-                  <> new_page.id,
+                dir <> processed.collection.directory <> "/" <> new_page.id,
                 processed.collection.render(new_page),
               )
             CachedPage(path, _) -> {
@@ -367,11 +369,7 @@ fn make_ssg_config(
                 Ok(c) -> c
                 Error(_) -> panic as cached_path
               }
-              ssg.add_static_asset(
-                s,
-                dir <> start <> "/index.html",
-                content,
-              )
+              ssg.add_static_asset(s, dir <> start <> "/index.html", content)
             }
           }
         })
