@@ -275,6 +275,7 @@ async function go_to(url, loader, back) {
   if (!response.ok) return;
   const html = await response.text();
   $app.innerHTML = html;
+  document.body.scrollIntoView();
 }
 document.addEventListener('click', async function(e) {
   const a = find_a(e.target);
