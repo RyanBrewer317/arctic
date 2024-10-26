@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
- - Fixed a back-navigation bug.
+ - Fixed a back-navigation bug
+ - Fixed a bug of javascript not running when the SPA pulled it in.
 
 ## [11.0.5] - 2024-10-21
 
