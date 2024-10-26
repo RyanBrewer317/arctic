@@ -310,10 +310,6 @@ fn make_ssg_config(
     Result(Nil),
 ) -> Result(Nil) {
   let home = config.render_home(processed_collections)
-  let dir = case config.render_spa {
-    Some(_) -> "/__pages/"
-    None -> "/"
-  }
   use ssg_config <- result.try(
     ssg.new("arctic_build")
     |> ssg.use_index_routes()
@@ -359,13 +355,31 @@ fn make_ssg_config(
               )
             CachedPage(path, _) -> {
               let assert [start, ..] = string.split(path, ".txt")
-              let cached_path = "arctic_build" <> dir <> start <> "/index.html"
+              let cached_path = "arctic_build/" <> start <> "/index.html"
               let res = simplifile.read(cached_path)
               let content = case res {
                 Ok(c) -> c
                 Error(_) -> panic as cached_path
               }
-              ssg.add_static_asset(s, dir <> start <> "/index.html", content)
+              case config.render_spa {
+                Some(_) -> {
+                  let spa_content_path = "arctic_build/__pages/" <> start <> "/index.html"
+                  let res = simplifile.read(spa_content_path)
+                  // TODO: give helpful error message here, like
+                  // "Note that if you toggle SPA in your app 
+                  // then you may have invalidated some of your cache, 
+                  // and you may need to flush it."
+                  let spa_content = case res {
+                    Ok(c) -> c
+                    Error(_) -> panic as cached_path
+                  }
+                  s
+                  |> ssg.add_static_asset("/__pages/" <> start <> "/index.html", spa_content)
+                  |> ssg.add_static_asset("/" <> start <> "/index.html", content)
+                }
+                None ->
+                  ssg.add_static_asset(s, "/" <> start <> "/index.html", content)
+              }
             }
           }
         })
@@ -504,17 +518,12 @@ fn add_vite_config(
   k: fn() -> Result(Nil),
 ) -> Result(Nil) {
   let home_page = "\"main\": \"arctic_build/index.html\""
-  let dir = case config.render_spa {
-    Some(_) -> "/__pages/"
-    None -> "/"
-  }
   let main_pages =
     list.fold(over: config.main_pages, from: "", with: fn(js, page) {
       js
       <> "\""
       <> page.id
-      <> "\": \"arctic_build"
-      <> dir
+      <> "\": \"arctic_build/"
       <> page.id
       <> "/index.html\", "
     })
@@ -526,8 +535,7 @@ fn add_vite_config(
         <> processed.collection.directory
         <> "/"
         <> get_id(page)
-        <> "\": \"arctic_build"
-        <> dir
+        <> "\": \"arctic_build/"
         <> processed.collection.directory
         <> "/"
         <> get_id(page)
