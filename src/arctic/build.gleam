@@ -241,17 +241,14 @@ pub fn build(config: Config) -> Result(Nil) {
 
 fn spa(
   frame: fn(Element(Nil)) -> Element(Nil),
-  home: Element(Nil),
+  html: Element(Nil),
 ) -> Element(Nil) {
   frame(
     html.div([], [
-      html.div([attribute.id("arctic-app")], [home]),
+      html.div([attribute.id("arctic-app")], [html]),
       html.script(
         [],
         "
-if (window.location.pathname !== '/') {
-  go_to(new URL(window.location.href), true, true);
-}
 // SPA algorithm stolen from Hayleigh Thompson's wonderful Modem library
 async function go_to(url, loader, back) {
   if (url.pathname === window.location.pathname) {
@@ -320,24 +317,20 @@ fn make_ssg_config(
   use ssg_config <- result.try(
     ssg.new("arctic_build")
     |> ssg.use_index_routes()
-    |> ssg.add_static_route(dir, home)
-    |> fn(ssg_config) {
-      case config.render_spa {
-        Some(frame) -> ssg.add_static_route(ssg_config, "/", spa(frame, home))
-        None -> ssg_config
-      }
-    }
+    |> add_route(config, "", home)
     |> list.fold(over: config.main_pages, with: fn(ssg_config, page) {
-      ssg.add_static_route(ssg_config, dir <> page.id, page.html)
+      ssg_config
+      |> add_route(config, page.id, page.html)
     })
     |> list.try_fold(
       over: processed_collections,
       with: fn(ssg_config, processed) {
         let ssg_config2 = case processed.collection.index {
           Some(render) ->
-            ssg.add_static_route(
+            add_route(
               ssg_config,
-              dir <> processed.collection.directory,
+              config,
+              processed.collection.directory,
               render(processed.pages),
             )
           None -> ssg_config
@@ -347,9 +340,10 @@ fn make_ssg_config(
             over: processed.collection.raw_pages,
             from: ssg_config2,
             with: fn(s, rp: RawPage) {
-              ssg.add_static_route(
+              add_route(
                 s,
-                dir <> processed.collection.directory <> "/" <> rp.id,
+                config,
+                processed.collection.directory <> "/" <> rp.id,
                 rp.html,
               )
             },
@@ -357,9 +351,10 @@ fn make_ssg_config(
         list.fold(over: processed.pages, from: ssg_config3, with: fn(s, p) {
           case p {
             NewPage(new_page) ->
-              ssg.add_static_route(
+              add_route(
                 s,
-                dir <> processed.collection.directory <> "/" <> new_page.id,
+                config,
+                processed.collection.directory <> "/" <> new_page.id,
                 processed.collection.render(new_page),
               )
             CachedPage(path, _) -> {
@@ -379,6 +374,18 @@ fn make_ssg_config(
     ),
   )
   k(ssg_config)
+}
+
+fn add_route(ssg_config, config: Config, path: String, content: Element(Nil)) {
+  case config.render_spa {
+    Some(frame) ->
+      ssg_config
+      |> ssg.add_static_route("/__pages/" <> path, content)
+      |> ssg.add_static_route("/" <> path, spa(frame, content))
+    None -> 
+      ssg_config
+      |> ssg.add_static_route("/" <> path, content)
+  }
 }
 
 fn ssg_build(ssg_config, k: fn() -> Result(Nil)) -> Result(Nil) {
