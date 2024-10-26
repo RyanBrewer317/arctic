@@ -251,7 +251,7 @@ fn spa(
         "
 // SPA algorithm stolen from Hayleigh Thompson's wonderful Modem library
 async function go_to(url, loader, back) {
-  if (url.pathname === window.location.pathname) {
+  if (!back && url.pathname === window.location.pathname) {
     if (url.hash) document.getElementById(url.hash.slice(1))?.scrollIntoView();
     else document.body.scrollIntoView();
     return;
@@ -266,7 +266,6 @@ async function go_to(url, loader, back) {
     }
   });
   // handle new path
-  console.log(url.pathname);
   const response = await fetch('/__pages/' + url.pathname + '/index.html');
   if (!response.ok) response = await fetch('/__pages/404.html');
   if (!response.ok) return;

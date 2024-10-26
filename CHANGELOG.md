@@ -5,11 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Upcoming (11.0.6)
+## Upcoming in 11.0.6!
 
 ### Changed
 
  - Create all the files of a static site, which can all individually act as SPAs, instead of only the index.html file. This is great for performance and possibly SEO, and means your hosting software doesn't need to route all requests to the root index.html file. It does mean the site is duplicated, by being present in both the root and in `__pages`, so I might offer a way to disable this at some point, or find a way to be able to read the pages of the root directory and do away with `__pages` entirely.
+
+### Fixed
+
+ - Fixed a back-navigation bug.
 
 ## [11.0.5] - 2024-10-21
 
