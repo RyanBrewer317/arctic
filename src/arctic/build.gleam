@@ -276,7 +276,7 @@ async function go_to(url, loader, back) {
     }
     const t = document.createTextNode(script.innerHTML);
     n.appendChild(t);
-    script.parentNode.replaceChild(script, n);
+    script.parentNode.replaceChild(n, script);
   }
   if (url.hash)
     window.requestAnimationFrame(() =>
