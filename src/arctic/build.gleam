@@ -277,7 +277,7 @@ async function go_to(url, loader, back) {
   }
   if (url.hash)
     window.requestAnimationFrame(() =>
-      document.getElementById(url.hash.slice(1))?.scrollIntoView();
+      document.getElementById(url.hash.slice(1))?.scrollIntoView()
     );
   else window.scrollTo(0, 0);
 }
