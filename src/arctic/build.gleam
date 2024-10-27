@@ -256,6 +256,8 @@ async function go_to(url, loader, back) {
     else window.scrollTo(0, 0);
     return;
   }
+  document.dispatchEvent(new Event('beforeunload'));
+  document.dispatchEvent(new Event('unload'));
   const $app = document.getElementById('arctic-app');
   if (loader) $app.innerHTML = '<div id=\"arctic-loader\"></div>';
   if (!back) window.history.pushState({}, '', url.href);
@@ -283,6 +285,7 @@ async function go_to(url, loader, back) {
       document.getElementById(url.hash.slice(1))?.scrollIntoView()
     );
   else window.scrollTo(0, 0);
+  document.dispatchEvent('DOMContentLoaded');
 }
 document.addEventListener('click', async function(e) {
   const a = find_a(e.target);
