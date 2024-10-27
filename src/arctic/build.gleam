@@ -285,7 +285,7 @@ async function go_to(url, loader, back) {
       document.getElementById(url.hash.slice(1))?.scrollIntoView()
     );
   else window.scrollTo(0, 0);
-  document.dispatchEvent('DOMContentLoaded');
+  document.dispatchEvent(new Event('DOMContentLoaded'));
 }
 document.addEventListener('click', async function(e) {
   const a = find_a(e.target);
