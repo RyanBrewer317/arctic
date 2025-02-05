@@ -11,6 +11,10 @@ Arctic is still very much a work in progress. Packages for common languages like
 
 Arctic is very frontend-oriented. I think it would be paired very well with the sort of work coming out of the Pevensie project, which is generally on the server side. In the more immediate future, Wisp/Mist is a great Gleam backend that's available right now! More generally, you should be able to pair an Arctic codebase with servers written in any language, or serverless functions, or just serve the Arctic site statically from a CDN!
 
+## Quickstart
+
+A proper quickstart guide can be found [here](https://arctic-framework.org/guides/quickstart). But the code block below gives a good sense of how the library works:
+
 ```sh
 gleam add arctic
 ```
