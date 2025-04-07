@@ -3,7 +3,8 @@ import arctic.{
   type ProcessedCollection, type RawPage, CachedPage, NewPage,
   ProcessedCollection,
 }
-import birl
+import gleam/time/timestamp
+import gleam/time/duration
 import gleam/bit_array
 import gleam/crypto
 import gleam/dict.{type Dict}
@@ -164,7 +165,7 @@ fn read_collection(
               <> "\""
               <> option.unwrap(
               option.map(p.date, fn(d) {
-                ",\"date:" <> birl.to_naive_date_string(d) <> "\""
+                ",\"date:" <> timestamp.to_rfc3339(d, duration.seconds(0)) <> "\""
               }),
               "",
             )

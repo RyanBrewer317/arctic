@@ -1,5 +1,5 @@
 name = "arctic"
-version = "11.0.6"
+version = "11.0.7"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
@@ -22,6 +22,7 @@ birl = ">= 1.7.1 and < 2.0.0"
 party = ">= 1.0.4 and < 2.0.0"
 gleam_crypto = ">= 1.4.0 and < 2.0.0"
 gsv = ">= 1.4.0 and < 2.0.0"
+gleam_time = ">= 1.1.0 and < 2.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"

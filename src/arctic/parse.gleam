@@ -1,6 +1,6 @@
+import gleam/time/timestamp
 import arctic.{type Page}
 import arctic/page
-import birl
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
@@ -256,7 +256,7 @@ pub fn parse(p: ParserBuilder(a), src_name: String, src: String) -> Result(Page)
       use date <- result.try(case dict.get(parsed.val.metadata, "date") {
         Ok(s) -> {
           use d <- result.try(
-            birl.parse(s)
+            timestamp.parse_rfc3339(s)
             |> result.map_error(fn(_) {
               snag.new("couldn't parse date `" <> s <> "`")
             }),

@@ -1,5 +1,5 @@
+import gleam/time/timestamp.{type Timestamp}
 import arctic.{type Page, Page}
-import birl.{type Time}
 import gleam/dict.{type Dict}
 import gleam/option.{None, Some}
 import lustre/element.{type Element}
@@ -61,6 +61,6 @@ pub fn with_tags(p: Page, tags: List(String)) -> Page {
 /// Add a date to a page.
 /// This is useful for sorting pages by date in a list,
 /// like in a blog.
-pub fn with_date(p: Page, date: Time) -> Page {
+pub fn with_date(p: Page, date: Timestamp) -> Page {
   Page(..p, date: Some(date))
 }

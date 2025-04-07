@@ -1,4 +1,4 @@
-import birl.{type Time}
+import gleam/time/timestamp.{type Timestamp}
 import gleam/dict.{type Dict}
 import gleam/option.{type Option}
 import gleam/order.{type Order}
@@ -44,7 +44,7 @@ pub type Page {
     title: String,
     blerb: String,
     tags: List(String),
-    date: Option(Time),
+    date: Option(Timestamp),
   )
 }
 
@@ -66,7 +66,7 @@ pub fn to_dummy_page(c: CacheablePage) -> Page {
       let date =
         metadata
         |> dict.get("date")
-        |> result.try(birl.parse)
+        |> result.try(timestamp.parse_rfc3339)
         |> option.from_result
       Page(get_id(c), [], metadata:, title:, blerb:, tags:, date:)
     }
