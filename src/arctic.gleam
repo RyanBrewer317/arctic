@@ -1,9 +1,11 @@
 import gleam/time/timestamp.{type Timestamp}
+import gleam/time/calendar
 import gleam/dict.{type Dict}
 import gleam/option.{type Option}
 import gleam/order.{type Order}
 import gleam/result
 import gleam/string
+import gleam/int
 import lustre/element.{type Element}
 import snag.{type Result}
 
@@ -66,7 +68,7 @@ pub fn to_dummy_page(c: CacheablePage) -> Page {
       let date =
         metadata
         |> dict.get("date")
-        |> result.try(timestamp.parse_rfc3339)
+        |> result.try(fn(s) {s |> parse_date |> result.map_error(fn(_) { Nil })})
         |> option.from_result
       Page(get_id(c), [], metadata:, title:, blerb:, tags:, date:)
     }
@@ -107,4 +109,56 @@ pub type Config {
     collections: List(Collection),
     render_spa: Option(fn(Element(Nil)) -> Element(Nil)),
   )
+}
+
+// TODO: docs and changelog
+pub fn parse_date(date: String) -> Result(timestamp.Timestamp) {
+  case string.split(date, on: "-") {
+    [year_str, month_str, day_str] -> {
+      use year <- result.try(int.parse(year_str))
+      use month_int <- result.try(int.parse(month_str))
+      use day <- result.try(int.parse(day_str))
+      use month <- result.try(case month_int {
+        1 -> Ok(calendar.January)
+        2 -> Ok(calendar.February)
+        3 -> Ok(calendar.March)
+        4 -> Ok(calendar.April)
+        5 -> Ok(calendar.May)
+        6 -> Ok(calendar.June)
+        7 -> Ok(calendar.July)
+        8 -> Ok(calendar.August)
+        9 -> Ok(calendar.September)
+        10 -> Ok(calendar.October)
+        11 -> Ok(calendar.November)
+        12 -> Ok(calendar.December)
+        _ -> Error(Nil)
+      })
+      Ok(timestamp.from_calendar(calendar.Date(year, month, day), calendar.TimeOfDay(0, 0, 0, 0), calendar.utc_offset))
+    } 
+    _ -> Error(Nil)
+  }
+  |> result.map_error(fn(_) { snag.new("couldn't parse date `" <> date <> "`") })
+}
+
+pub fn date_to_string(ts: timestamp.Timestamp) -> String {
+  let d = timestamp.to_calendar(ts, calendar.utc_offset).0
+  let month_str = case d.month {
+    calendar.January -> "01"
+    calendar.February -> "02"
+    calendar.March -> "03"
+    calendar.April -> "04"
+    calendar.May -> "05"
+    calendar.June -> "06"
+    calendar.July -> "07"
+    calendar.August -> "08"
+    calendar.September -> "09"
+    calendar.October -> "10"
+    calendar.November -> "11"
+    calendar.December -> "12"
+  }
+  let day_str = case d.day < 10 {
+    True -> "0" <> int.to_string(d.day)
+    False -> int.to_string(d.day)
+  }
+  int.to_string(d.year) <> "-" <> month_str <> "-" <> day_str
 }
