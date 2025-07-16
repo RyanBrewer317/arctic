@@ -1,5 +1,5 @@
 name = "arctic"
-version = "11.0.9"
+version = "11.0.10"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
@@ -17,11 +17,11 @@ gleam_stdlib = ">= 0.40.0 and < 2.0.0"
 snag = ">= 1.0.0 and < 2.0.0"
 simplifile = ">= 2.1.0 and < 3.0.0"
 lustre_ssg = ">= 0.8.3 and < 1.0.0"
-lustre = ">= 4.3.2 and < 5.0.0"
+lustre = ">= 4.3.2 and < 6.0.0"
 birl = ">= 1.7.1 and < 2.0.0"
 party = ">= 1.0.4 and < 2.0.0"
 gleam_crypto = ">= 1.4.0 and < 2.0.0"
-gsv = ">= 1.4.0 and < 2.0.0"
+gsv = ">= 1.4.0 and < 5.0.0"
 gleam_time = ">= 1.1.0 and < 2.0.0"
 
 [dev-dependencies]
